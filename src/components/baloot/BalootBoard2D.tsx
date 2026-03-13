@@ -8,6 +8,7 @@ import { getBestBid, getBestCard } from "@/lib/baloot/ai";
 import ProfessionalCard from "./ProfessionalCard";
 import { usePlatformStore } from "@/lib/platform/store";
 import { TRANSLATIONS } from "@/lib/platform/translations";
+import { getTheme } from "@/lib/platform/cultural-themes";
 
 import { useSocket } from "@/lib/platform/socket";
 
@@ -158,7 +159,7 @@ function suitIcon(s: Suit, w: number, h: number) {
 }
 
 export default function BalootBoard2D() {
-  const { user, equipped, unlockItem, language, inventory } = usePlatformStore();
+  const { user, equipped, unlockItem, language, inventory, culturalMood } = usePlatformStore();
   const { socket } = useSocket();
   const t = TRANSLATIONS[language];
   const [game] = React.useState(() => new BalootGame());
@@ -172,6 +173,7 @@ export default function BalootBoard2D() {
   const [trump, setTrump] = React.useState<Suit>("H");
   const [started, setStarted] = React.useState(false);
   const [ended, setEnded] = React.useState(false);
+  const cTheme = getTheme(culturalMood);
   const [ns, setNs] = React.useState(0);
   const [ew, setEw] = React.useState(0);
   const [turn, setTurn] = React.useState<PlayerId>("N");
@@ -503,6 +505,15 @@ export default function BalootBoard2D() {
         setNs(nsScore);
         setEw(ewScore);
         setUiPhase("ended");
+        // أضف نقطة لبلد اللاعب لو فريق N/S فاز (اللاعب في مكان S)
+        const playerWon = nsScore > ewScore;
+        if (playerWon && user?.country) {
+          fetch("/api/country-war", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ country: user.country, delta: 1 }),
+          }).catch(() => {});
+        }
     } else {
         setNs(game.scoreRound.NS);
         setEw(game.scoreRound.EW);

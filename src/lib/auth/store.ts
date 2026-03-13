@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import { randomBytes, pbkdf2Sync } from "crypto";
 
-export type Ratings = { chess: number; domino: number };
+export type Ratings = { chess: number; domino: number; ludo: number; baloot: number };
 export type Tier = "free" | "pro" | "elite";
 export type Cosmetics = { pieceSet: "lichess" | "staunton" | "gold" | "neon"; boardTheme: "classic" | "wood" | "carbon" | "ocean" };
 export type User = {
@@ -44,6 +44,7 @@ export type User = {
   currentWinStreakDomino?: number;
   totalDurationDomino?: number;
   role?: "user" | "admin" | "super_admin";
+  country?: string;
 };
 
 const DATA_DIR = path.join(process.cwd(), "data");
@@ -101,7 +102,7 @@ export function createUser(id: string, name: string, email: string, password: st
     passHash: hash,
     salt,
     createdAt: Date.now(),
-    ratings: { chess: 1200, domino: 1200 },
+    ratings: { chess: 1200, domino: 1200, ludo: 1200, baloot: 1200 },
     tier: "free",
     cosmetics: { pieceSet: "lichess", boardTheme: "classic" },
     unlockedPieceSets: ["lichess", "staunton"],

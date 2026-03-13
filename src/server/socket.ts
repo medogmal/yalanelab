@@ -16,6 +16,9 @@ export function initSocket(httpServer: HttpServer) {
     cors: { origin: "*", methods: ["GET", "POST"] },
   });
 
+  // اجعل الـ io متاح globally للـ /api/online-count
+  (globalThis as any)._io = io;
+
   // ── Domino room helper ──────────────────────────────────────────
   function emitMatchState(matchId: string) {
     const match = getMatch(matchId);

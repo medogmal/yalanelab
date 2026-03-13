@@ -1,500 +1,638 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
-import { usePlatformStore } from "@/lib/platform/store";
-import { TRANSLATIONS } from "@/lib/platform/translations";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  Gamepad2, ShoppingBag, MessageCircle, User, Bell,
-  Trophy, Crown, Globe, Video, Play, Zap, ChevronRight,
-  Flame, Search, Star, Swords
-} from "lucide-react";
-import UnifiedStore from "@/components/platform/UnifiedStore";
-import CommunityChat from "@/components/platform/CommunityChat";
-import ProfileView from "@/components/profile/ProfileView";
-import MoodSwitcher from "@/components/platform/MoodSwitcher";
-import { getTheme } from "@/lib/platform/cultural-themes";
+import { usePlatformStore } from "@/lib/platform/store";
 
-/* ─── GAMES CONFIG ──────────────────────────────────────────── */
+/* ─── GAME DATA ─────────────────────────────────────────────── */
 const GAMES = [
   {
-    id: "domino",
-    title: "الدومينو",
-    href: "/games/domino/online",
-    bg: "/domino/tables/sultan.png",
-    color: "#00ff87",
-    shadow: "rgba(0,255,135,0.35)",
-    players: "12,400",
-    hot: true,
-    tag: "الأكثر لعباً",
+    id: "domino", label: "دومينو", labelEn: "Domino",
+    desc: "الكلاسيك العربي الأصيل", longDesc: "العب مع أصدقائك أو مع لاعبين من كل الدول العربية في أشهر لعبة طاولة.",
+    icon: "🁣", emoji: "🀱",
+    color: "#f59e0b", soft: "rgba(245,158,11,0.1)", border: "rgba(245,158,11,0.22)",
+    href: "/games/domino/online", trainHref: "/games/domino/training",
+    players: "١٢,٤٠٠", tag: "الأكثر لعباً",
+    gradient: "linear-gradient(135deg, #92400e 0%, #1c0f00 100%)",
+    imgBg: "linear-gradient(160deg, #78350f, #451a03, #0c0c0e)",
+    features: ["٤ لاعبين", "دوري أسبوعي", "بطولات"],
   },
   {
-    id: "baloot",
-    title: "البلوت",
-    href: "/games/baloot/online",
-    bg: "/domino/tables/egyptian.png",
-    color: "#f87171",
-    shadow: "rgba(248,113,113,0.35)",
-    players: "8,200",
-    hot: true,
-    tag: "🔥 تريند",
+    id: "baloot", label: "بلوت", labelEn: "Baloot",
+    desc: "بطولة البلوت السعودي", longDesc: "تحدّى أقوى اللاعبين في لعبة الورق السعودية الشهيرة.",
+    icon: "🃏", emoji: "🎴",
+    color: "#ec4899", soft: "rgba(236,72,153,0.1)", border: "rgba(236,72,153,0.22)",
+    href: "/games/baloot/online", trainHref: "/games/baloot/online",
+    players: "٨,٢٠٠", tag: "HOT",
+    gradient: "linear-gradient(135deg, #831843 0%, #1a0008 100%)",
+    imgBg: "linear-gradient(160deg, #9d174d, #500724, #0c0c0e)",
+    features: ["فريقين ٢×٢", "تصنيف elo", "مواسم"],
   },
   {
-    id: "chess",
-    title: "الشطرنج",
-    href: "/games/chess/online",
-    bg: "/domino/tables/turkish.png",
-    color: "#a78bfa",
-    shadow: "rgba(167,139,250,0.35)",
-    players: "4,100",
-    tag: "كلاسيك",
+    id: "chess", label: "شطرنج", labelEn: "Chess",
+    desc: "تحدّى أذكى اللاعبين", longDesc: "شطرنج عربي بمحرك Stockfish للتدريب ومباريات أونلاين بالتصنيف.",
+    icon: "♟", emoji: "♛",
+    color: "#8b5cf6", soft: "rgba(139,92,246,0.1)", border: "rgba(139,92,246,0.22)",
+    href: "/games/chess/online", trainHref: "/games/chess/play",
+    players: "٤,١٠٠", tag: "استراتيجي",
+    gradient: "linear-gradient(135deg, #4c1d95 0%, #0c0018 100%)",
+    imgBg: "linear-gradient(160deg, #5b21b6, #2e1065, #0c0c0e)",
+    features: ["تصنيف Elo", "Stockfish AI", "تحليل"],
   },
   {
-    id: "ludo",
-    title: "اللودو",
-    href: "/games/ludo/online",
-    bg: "/domino/tables/desert.png",
-    color: "#60a5fa",
-    shadow: "rgba(96,165,250,0.35)",
-    players: "3,700",
-    tag: "عائلي",
+    id: "ludo", label: "لودو", labelEn: "Ludo",
+    desc: "العب مع العيلة", longDesc: "لودو مميز بـ ٢ أو ٤ لاعبين — مناسب للعيلة والأصدقاء.",
+    icon: "🎲", emoji: "🎯",
+    color: "#06b6d4", soft: "rgba(6,182,212,0.1)", border: "rgba(6,182,212,0.22)",
+    href: "/games/ludo/online", trainHref: "/games/ludo/online",
+    players: "٣,٧٠٠", tag: "عائلي",
+    gradient: "linear-gradient(135deg, #164e63 0%, #001a20 100%)",
+    imgBg: "linear-gradient(160deg, #0e7490, #083344, #0c0c0e)",
+    features: ["٤ لاعبين", "غرف خاصة", "دردشة"],
   },
-];
+] as const;
 
-const EMOJIS: Record<string, string> = {
-  domino: "🁣", baloot: "🃏", chess: "♟️", ludo: "🎲",
-};
+type Tab = "home" | "war" | "store" | "profile";
 
-type Tab = "games" | "store" | "chat" | "profile" | "live";
+/* ─── HEADER ────────────────────────────────────────────────── */
+function Header({ user, onlineCount }: { user: any; onlineCount: number | null }) {
+  return (
+    <header style={{
+      position: "fixed", top: 0, left: 0, right: 0, zIndex: 100,
+      height: 56,
+      display: "flex", alignItems: "center", justifyContent: "space-between",
+      padding: "0 clamp(16px,4vw,28px)",
+      background: "rgba(12,12,14,0.94)",
+      backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
+      borderBottom: "1px solid rgba(255,255,255,0.06)",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+        <div style={{
+          width: 30, height: 30, borderRadius: 8, background: "#7c3aed",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontWeight: 900, fontSize: 14, color: "#fff",
+        }}>ي</div>
+        <span style={{ fontWeight: 900, fontSize: 14, color: "#f4f4f8" }}>يالا نلعب</span>
+      </div>
 
-/* ═══════════════════════════════════════════════════════════════
-   ROOT COMPONENT
-═══════════════════════════════════════════════════════════════ */
-export default function PlatformHub() {
-  const { user, language, setLanguage, culturalMood } = usePlatformStore();
-  const [activeTab, setActiveTab] = useState<Tab>("games");
-  const [mounted, setMounted] = useState(false);
-  const t = TRANSLATIONS[language];
-  const theme = getTheme(culturalMood);
+      {onlineCount !== null && (
+        <div style={{
+          display: "flex", alignItems: "center", gap: 5,
+          padding: "3px 9px", borderRadius: 99,
+          background: "rgba(34,197,94,0.07)", border: "1px solid rgba(34,197,94,0.14)",
+          fontSize: 10, fontWeight: 800, color: "#22c55e",
+        }}>
+          <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#22c55e", display: "inline-block", animation: "blink 1.8s ease-in-out infinite" }}/>
+          {onlineCount.toLocaleString()} أونلاين
+        </div>
+      )}
 
-  useEffect(() => {
-    setMounted(true);
-    const tab = new URLSearchParams(window.location.search).get("tab") as Tab;
-    if (tab) setActiveTab(tab);
-  }, []);
+      <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+        {user && !user.id?.startsWith("guest") ? (
+          <>
+            <span style={{ padding: "3px 9px", borderRadius: 7, background: "rgba(245,158,11,0.09)", border: "1px solid rgba(245,158,11,0.16)", fontSize: 11, fontWeight: 800, color: "#f59e0b" }}>
+              🪙 {(user.coins ?? 0).toLocaleString()}
+            </span>
+            <div style={{ width: 28, height: 28, borderRadius: 8, background: "#7c3aed", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 900, color: "#fff" }}>
+              {user.name?.[0] ?? "؟"}
+            </div>
+          </>
+        ) : (
+          <Link href="/auth/login" style={{ padding: "6px 14px", borderRadius: 8, background: "#7c3aed", color: "#fff", fontSize: 12, fontWeight: 800, textDecoration: "none" }}>
+            دخول
+          </Link>
+        )}
+      </div>
+    </header>
+  );
+}
+
+/* ─── GAME CARD (with visual cover) ─────────────────────────── */
+function GameCard({ game, index }: { game: typeof GAMES[number]; index: number }) {
+  const [hov, setHov] = useState(false);
 
   return (
-    <div className="min-h-dvh text-white flex flex-col md:flex-row" dir="rtl"
-      style={{ background: theme.colors.primary, transition: "background 0.6s ease" }}>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.08 }}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        borderRadius: 20, overflow: "hidden",
+        border: `1px solid ${hov ? game.border : "rgba(255,255,255,0.07)"}`,
+        background: "#131317",
+        cursor: "pointer",
+        transition: "all .22s",
+        transform: hov ? "translateY(-4px)" : "translateY(0)",
+        boxShadow: hov ? `0 20px 48px rgba(0,0,0,0.5), 0 0 0 1px ${game.border}` : "none",
+      }}
+    >
+      {/* Cover image area */}
+      <div style={{
+        height: 160,
+        background: game.imgBg,
+        position: "relative",
+        overflow: "hidden",
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}>
+        {/* Pattern overlay */}
+        <div style={{
+          position: "absolute", inset: 0,
+          backgroundImage: `radial-gradient(circle at 30% 50%, ${game.color}22 0%, transparent 60%), radial-gradient(circle at 80% 20%, ${game.color}15 0%, transparent 50%)`,
+        }}/>
 
-      {/* ══ MOBILE BOTTOM NAV ══ */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-50 glass-dark border-t border-white/[0.07] flex items-end justify-around px-1 pt-2" style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}>
-        {([ 
-          { tab: "games",   icon: <Gamepad2   size={22}/>, label: "الألعاب"  },
-          { tab: "live",    icon: <Video      size={22}/>, label: "مباشر"    },
-          { tab: "store",   icon: <ShoppingBag size={22}/>, label: "المتجر"  },
-          { tab: "profile", icon: <User       size={22}/>, label: "حسابي"   },
-        ] as const).map(({ tab, icon, label }) => (
-          <button key={tab} onClick={() => setActiveTab(tab)}
-            className={`flex flex-col items-center gap-1 px-3 py-1 rounded-xl transition-all
-              ${activeTab === tab ? "text-amber-400" : "text-slate-500"}`}>
-            <span className={`transition-transform ${activeTab === tab ? "scale-110" : ""}`}>{icon}</span>
-            <span className="text-[10px] font-black">{label}</span>
-          </button>
-        ))}
-      </nav>
+        {/* Big emoji icon */}
+        <div style={{
+          fontSize: 72, lineHeight: 1,
+          filter: `drop-shadow(0 0 32px ${game.color}80)`,
+          transition: "transform .3s",
+          transform: hov ? "scale(1.15) rotate(-5deg)" : "scale(1) rotate(0deg)",
+          zIndex: 1, userSelect: "none",
+        }}>
+          {game.icon}
+        </div>
 
-      {/* ══ DESKTOP SIDEBAR ══ */}
-      <aside className="hidden md:flex w-16 lg:w-60 flex-col glass-dark border-l border-white/[0.06] p-3 sticky top-0 h-dvh overflow-y-auto">
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-3 px-2 py-3 mb-6 group">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center flex-shrink-0 shadow-lg shadow-amber-500/30 group-hover:scale-105 transition-transform">
-            <Gamepad2 size={20} className="text-black" />
-          </div>
-          <div className="hidden lg:block">
-            <div className="font-black text-base gold-shimmer leading-none">يالا نلعب</div>
-            <div className="text-[10px] text-slate-600 font-bold tracking-widest uppercase mt-0.5">Gaming Platform</div>
-          </div>
-        </Link>
+        {/* Tag badge */}
+        <div style={{
+          position: "absolute", top: 10, right: 10,
+          padding: "3px 9px", borderRadius: 99,
+          background: `${game.color}22`,
+          border: `1px solid ${game.border}`,
+          fontSize: 10, fontWeight: 800, color: game.color,
+        }}>{game.tag}</div>
 
-        {/* Nav */}
-        <div className="space-y-1 flex-1">
-          {([
-            { tab: "games",   icon: <Gamepad2    size={18}/>, label: "الألعاب",  badge: null },
-            { tab: "live",    icon: <Video       size={18}/>, label: "مباشر",    badge: "LIVE" },
-            { tab: "store",   icon: <ShoppingBag size={18}/>, label: "المتجر",   badge: null },
-            { tab: "chat",    icon: <MessageCircle size={18}/>, label: "الدردشة", badge: "9+" },
-            { tab: "profile", icon: <User        size={18}/>, label: "حسابي",    badge: null },
-          ] as const).map(({ tab, icon, label, badge }) => (
-            <button key={tab} onClick={() => setActiveTab(tab)}
-              className={`w-full flex items-center gap-3 px-2 lg:px-3 py-2.5 rounded-xl transition-all text-sm group relative
-                ${activeTab === tab
-                  ? "bg-amber-400/15 text-amber-400 font-black border border-amber-400/20"
-                  : "text-slate-500 hover:bg-white/[0.05] hover:text-white font-medium"}`}>
-              <span className={`flex-shrink-0 transition-transform ${activeTab === tab ? "scale-110" : "group-hover:scale-110"}`}>
-                {icon}
-              </span>
-              <span className="hidden lg:block flex-1 text-right truncate">{label}</span>
-              {badge && (
-                <span className={`hidden lg:block text-[9px] font-black px-1.5 py-0.5 rounded-md
-                  ${tab === "live" ? "bg-red-500 text-white" : "bg-indigo-500 text-white"}`}>
-                  {badge}
-                </span>
-              )}
-              {/* Active left bar */}
-              {activeTab === tab && (
-                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-amber-400 rounded-full" />
-              )}
-            </button>
+        {/* Players online */}
+        <div style={{
+          position: "absolute", bottom: 10, left: 10,
+          display: "flex", alignItems: "center", gap: 4,
+          padding: "3px 9px", borderRadius: 99,
+          background: "rgba(0,0,0,0.5)",
+          border: "1px solid rgba(255,255,255,0.08)",
+          fontSize: 10, fontWeight: 700, color: "#22c55e",
+        }}>
+          <span style={{ width: 5, height: 5, background: "#22c55e", borderRadius: "50%", display: "inline-block" }}/>
+          {game.players} الآن
+        </div>
+
+        {/* Bottom gradient fade */}
+        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 60, background: "linear-gradient(to top, #131317, transparent)" }}/>
+      </div>
+
+      {/* Content */}
+      <div style={{ padding: "16px 16px 16px" }}>
+        <div style={{ fontWeight: 900, fontSize: 17, color: "#f4f4f8", marginBottom: 3 }}>{game.label}</div>
+        <div style={{ fontSize: 11, color: "#7a7a8a", marginBottom: 12, lineHeight: 1.5 }}>{game.desc}</div>
+
+        {/* Features */}
+        <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 14 }}>
+          {game.features.map(f => (
+            <span key={f} style={{
+              fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 99,
+              background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)",
+              color: "#7a7a8a",
+            }}>{f}</span>
           ))}
         </div>
 
-        {/* Bottom */}
-        <div className="space-y-3 pt-3 border-t border-white/[0.06]">
-          {/* اختيار المود الثقافي */}
-          <MoodSwitcher />
-          <button onClick={() => setLanguage(language === "ar" ? "en" : "ar")}
-            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-slate-500 hover:text-white hover:bg-white/[0.05] transition-all text-sm">
-            <Globe size={17} className="flex-shrink-0" />
-            <span className="hidden lg:block">{language === "ar" ? "English" : "العربية"}</span>
-          </button>
+        {/* Actions */}
+        <div style={{ display: "flex", gap: 7 }}>
+          <Link href={game.href} onClick={e => e.stopPropagation()} style={{
+            flex: 1, padding: "9px 0", borderRadius: 10,
+            background: game.color, color: "#fff",
+            fontWeight: 800, fontSize: 12, textDecoration: "none",
+            textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
+            transition: "filter .15s", filter: hov ? "brightness(1.1)" : "brightness(1)",
+          }}>
+            ▶ العب الآن
+          </Link>
+          <Link href={game.trainHref} onClick={e => e.stopPropagation()} style={{
+            padding: "9px 12px", borderRadius: 10,
+            background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
+            color: "#7a7a8a", fontWeight: 700, fontSize: 12, textDecoration: "none",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>🤖</Link>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
 
-          {/* XP bar */}
-          {mounted && (
-            <div className="hidden lg:block px-1">
-              <div className="flex justify-between text-[10px] mb-1.5">
-                <span className="text-slate-600 font-bold">المستوى {user?.level ?? 1}</span>
-                <span className="text-amber-400 font-black">+320 XP</span>
-              </div>
-              <div className="h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: "68%" }}
-                  transition={{ duration: 1.5, ease: "easeOut", delay: 0.5 }}
-                  className="h-full bg-gradient-to-r from-amber-400 to-orange-500 rounded-full"
-                />
-              </div>
+/* ─── HOME SCREEN ──────────────────────────────────────────── */
+function HomeScreen({ user }: { user: any }) {
+  return (
+    <div style={{ padding: "70px 0 90px" }}>
+      {/* Hero banner */}
+      <div style={{
+        margin: "0 clamp(14px,4vw,28px) 32px",
+        padding: "clamp(24px,4vw,40px) clamp(20px,4vw,40px)",
+        borderRadius: 22,
+        background: "linear-gradient(135deg, #1a0a3e 0%, #0c0c14 60%, #0c0c0e 100%)",
+        border: "1px solid rgba(124,58,237,0.2)",
+        position: "relative", overflow: "hidden",
+      }}>
+        {/* Decorative circles */}
+        <div style={{ position: "absolute", top: -60, left: -60, width: 200, height: 200, borderRadius: "50%", background: "radial-gradient(circle, rgba(124,58,237,0.2), transparent 70%)", pointerEvents: "none" }}/>
+        <div style={{ position: "absolute", bottom: -40, right: -20, width: 160, height: 160, borderRadius: "50%", background: "radial-gradient(circle, rgba(249,115,22,0.1), transparent 70%)", pointerEvents: "none" }}/>
+
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+          <div style={{ fontSize: 10, fontWeight: 800, color: "#a78bfa", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ width: 16, height: 1, background: "#7c3aed", display: "inline-block" }}/>
+            منصة الألعاب العربية
+          </div>
+          <h1 style={{ fontSize: "clamp(26px,5vw,44px)", fontWeight: 900, lineHeight: 1.15, color: "#f4f4f8", marginBottom: 10 }}>
+            العب. تنافس. اربح.
+          </h1>
+          <p style={{ fontSize: "clamp(12px,1.5vw,14px)", color: "#7a7a8a", maxWidth: 380, lineHeight: 1.7, marginBottom: 22 }}>
+            دومينو، بلوت، شطرنج، لودو وألعاب أكثر. العب أونلاين مع لاعبين من كل الدول العربية.
+          </p>
+
+          {(!user || user.id?.startsWith("guest")) && (
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <Link href="/auth/register" style={{ padding: "10px 22px", borderRadius: 10, background: "#7c3aed", color: "#fff", fontWeight: 800, fontSize: 13, textDecoration: "none" }}>
+                ابدأ مجاناً →
+              </Link>
+              <Link href="/auth/login" style={{ padding: "10px 20px", borderRadius: 10, background: "transparent", border: "1px solid rgba(255,255,255,0.1)", color: "#c0c0cc", fontWeight: 700, fontSize: 13, textDecoration: "none" }}>
+                تسجيل دخول
+              </Link>
             </div>
           )}
+          {user && !user.id?.startsWith("guest") && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 14, color: "#a78bfa", fontWeight: 700 }}>مرحباً يا {user.name?.split(" ")[0]} 👋</span>
+              <Link href="/games/domino/online" style={{ padding: "8px 18px", borderRadius: 9, background: "#7c3aed", color: "#fff", fontWeight: 800, fontSize: 12, textDecoration: "none" }}>
+                العب الآن →
+              </Link>
+            </div>
+          )}
+        </motion.div>
+      </div>
+
+      {/* Section header */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", margin: "0 clamp(14px,4vw,28px) 14px" }}>
+        <h2 style={{ fontWeight: 800, fontSize: 14, color: "#c0c0cc" }}>الألعاب المتاحة</h2>
+        <span style={{ fontSize: 10, color: "#404050", fontWeight: 700 }}>٤ ألعاب</span>
+      </div>
+
+      {/* Games grid */}
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 220px), 1fr))",
+        gap: 14, padding: "0 clamp(14px,4vw,28px) 28px",
+      }}>
+        {GAMES.map((g, i) => <GameCard key={g.id} game={g} index={i} />)}
+      </div>
+
+      {/* Stats row */}
+      <div style={{ padding: "0 clamp(14px,4vw,28px)", marginBottom: 8 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: 10 }}>
+          {[
+            { icon: "👥", value: "+٢٨,٠٠٠", label: "لاعب نشط" },
+            { icon: "🏆", value: "+٥,٠٠٠", label: "مباراة اليوم" },
+            { icon: "🌍", value: "٢٢", label: "دولة مشاركة" },
+            { icon: "⚡", value: "< ١٠ث", label: "انتظار متوسط" },
+          ].map(s => (
+            <motion.div key={s.label} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} style={{ padding: "14px 12px", background: "#131317", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 14, textAlign: "center" }}>
+              <div style={{ fontSize: 20, marginBottom: 5 }}>{s.icon}</div>
+              <div style={{ fontWeight: 900, fontSize: 16, color: "#f4f4f8", marginBottom: 2 }}>{s.value}</div>
+              <div style={{ fontSize: 10, color: "#7a7a8a", fontWeight: 600 }}>{s.label}</div>
+            </motion.div>
+          ))}
         </div>
-      </aside>
+      </div>
+    </div>
+  );
+}
 
-      {/* ══ MAIN AREA ══ */}
-      <main className="flex-1 flex flex-col min-h-dvh overflow-hidden min-w-0">
+/* ─── WAR SCREEN ────────────────────────────────────────────── */
+function WarScreen() {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-        {/* Top bar */}
-        <header className="h-14 glass-dark border-b border-white/[0.06] flex items-center justify-between px-3 md:px-6 flex-shrink-0 sticky top-0 z-30">
-          {/* Search */}
-          <div className="relative hidden md:block w-64 lg:w-80">
-            <Search size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600" />
-            <input placeholder="ابحث..." className="w-full bg-white/[0.04] border border-white/[0.06] rounded-xl pr-9 pl-4 py-2 text-sm focus:outline-none focus:border-amber-400/30 text-slate-300 placeholder:text-slate-600 transition-all" />
-          </div>
+  useEffect(() => {
+    fetch("/api/country-war").then(r => r.json()).then(d => { if (d.countries) setData(d); }).catch(() => {}).finally(() => setLoading(false));
+  }, []);
 
-          <div className="flex items-center gap-2 mr-auto">
-            {/* Wallet */}
-            {mounted && (
-              <div className="flex items-center gap-2.5 bg-white/[0.04] border border-white/[0.06] px-3 py-1.5 rounded-xl text-sm font-black hidden sm:flex">
-                <span className="text-amber-400 flex items-center gap-1">🪙 <span suppressHydrationWarning>{user?.coins?.toLocaleString() ?? 0}</span></span>
-                <div className="w-px h-3.5 bg-white/[0.08]" />
-                <span className="text-purple-400 flex items-center gap-1">💎 <span suppressHydrationWarning>{user?.gems?.toLocaleString() ?? 0}</span></span>
+  return (
+    <div style={{ padding: "70px clamp(14px,4vw,28px) 90px", maxWidth: 560, margin: "0 auto" }}>
+      <div style={{ marginBottom: 24 }}>
+        <h2 style={{ fontWeight: 900, fontSize: 22, color: "#f4f4f8", marginBottom: 4 }}>⚔️ معركة الدول</h2>
+        <p style={{ fontSize: 12, color: "#7a7a8a" }}>العب وأضف نقطة لبلدك كل أسبوع</p>
+      </div>
+
+      {loading && Array.from({ length: 5 }).map((_, i) => (
+        <div key={i} style={{ height: 56, borderRadius: 12, marginBottom: 8, background: "#131317" }}/>
+      ))}
+
+      {!loading && data?.countries.map((c: any, i: number) => {
+        const pct = data.total > 0 ? (c.score / data.total) * 100 : 0;
+        return (
+          <motion.div key={c.code} initial={{ opacity: 0, x: 14 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}
+            style={{ padding: "12px 14px", background: i === 0 ? "rgba(245,158,11,0.05)" : "#131317", border: `1px solid ${i === 0 ? "rgba(245,158,11,0.18)" : "rgba(255,255,255,0.05)"}`, borderRadius: 14, marginBottom: 7 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 7 }}>
+              <span style={{ fontSize: 12, color: ["#fbbf24","#c0c0c0","#cd7f32"][i] ?? "#404050", fontWeight: 900, width: 20 }}>
+                {["🥇","🥈","🥉"][i] ?? (i + 1)}
+              </span>
+              <span style={{ fontSize: 22 }}>{c.flag}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 800, fontSize: 13, color: "#f4f4f8" }}>{c.name}</div>
+                <div style={{ fontSize: 10, color: "#7a7a8a" }}>{c.wins} فوز</div>
               </div>
-            )}
-            {/* Bell */}
-            <button className="relative p-2 rounded-xl hover:bg-white/[0.06] transition-colors">
-              <Bell size={17} className="text-slate-500" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-[#07090f] animate-pulse" />
+              <span style={{ fontWeight: 900, fontSize: 13, color: i === 0 ? "#f59e0b" : "#404050" }}>{c.score.toLocaleString()}</span>
+            </div>
+            <div style={{ height: 3, background: "rgba(255,255,255,0.04)", borderRadius: 99, overflow: "hidden" }}>
+              <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.8, delay: i * 0.04 }}
+                style={{ height: "100%", borderRadius: 99, background: i === 0 ? "#f59e0b" : "#7c3aed" }}/>
+            </div>
+          </motion.div>
+        );
+      })}
+
+      <Link href="/games/domino/online" style={{ display: "flex", alignItems: "center", justifyContent: "center", marginTop: 14, padding: "13px", borderRadius: 14, background: "#7c3aed", color: "#fff", fontWeight: 800, fontSize: 14, textDecoration: "none" }}>
+        العب وأضف نقطة لبلدك →
+      </Link>
+    </div>
+  );
+}
+
+/* ─── STORE SCREEN (REAL) ───────────────────────────────────── */
+const STORE_ITEMS = [
+  {
+    id: "coins_500", type: "coins", name: "٥٠٠ كوين", desc: "عملات للمتجر والرهانات",
+    icon: "🪙", price: 0, gems: 50, color: "#f59e0b", tag: "شائع",
+  },
+  {
+    id: "coins_1200", type: "coins", name: "١٢٠٠ كوين", desc: "قيمة أفضل +٢٠٪",
+    icon: "🪙", price: 0, gems: 100, color: "#f59e0b", tag: "قيمة",
+  },
+  {
+    id: "skin_dragon", type: "skin", name: "سكن التنين", desc: "قطع دومينو بتصميم التنين",
+    icon: "🐉", price: 800, gems: 0, color: "#ef4444", tag: "حصري",
+  },
+  {
+    id: "skin_phoenix", type: "skin", name: "سكن الفينيكس", desc: "قطع دومينو بتصميم الفينيكس",
+    icon: "🔥", price: 800, gems: 0, color: "#f97316", tag: "حصري",
+  },
+  {
+    id: "skin_unicorn", type: "skin", name: "سكن اليونيكورن", desc: "قطع دومينو يونيكورن",
+    icon: "🦄", price: 600, gems: 0, color: "#a78bfa", tag: "جديد",
+  },
+  {
+    id: "skin_griffin", type: "skin", name: "سكن الغريفين", desc: "قطع دومينو بتصميم الغريفين",
+    icon: "🦅", price: 700, gems: 0, color: "#06b6d4", tag: "جديد",
+  },
+  {
+    id: "frame_royal", type: "frame", name: "إطار الملكي", desc: "إطار مميز لبروفايلك",
+    icon: "👑", price: 400, gems: 0, color: "#f59e0b", tag: "",
+  },
+  {
+    id: "avatar_knight", type: "avatar", name: "شخصية الفارس", desc: "أفاتار الفارس المدرّع",
+    icon: "🤺", price: 300, gems: 0, color: "#8b5cf6", tag: "",
+  },
+];
+
+type StoreFilter = "all" | "coins" | "skin" | "frame" | "avatar";
+
+function StoreScreen() {
+  const { user } = usePlatformStore();
+  const [filter, setFilter] = useState<StoreFilter>("all");
+  const [buying, setBuying] = useState<string | null>(null);
+  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+
+  const filtered = filter === "all" ? STORE_ITEMS : STORE_ITEMS.filter(i => i.type === filter);
+
+  async function buy(item: typeof STORE_ITEMS[number]) {
+    if (!user || user.id?.startsWith("guest")) { setMsg({ text: "سجّل دخولك أولاً", ok: false }); setTimeout(() => setMsg(null), 2500); return; }
+    setBuying(item.id);
+    try {
+      const res = await fetch("/api/store/buy", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ itemId: item.id, price: item.price, type: item.type }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setMsg({ text: "تم الشراء بنجاح! ✅", ok: true });
+      } else {
+        setMsg({ text: data.error ?? "فشل الشراء", ok: false });
+      }
+    } catch { setMsg({ text: "خطأ في الاتصال", ok: false }); }
+    finally { setBuying(null); setTimeout(() => setMsg(null), 2500); }
+  }
+
+  const FILTERS: { id: StoreFilter; label: string }[] = [
+    { id: "all",    label: "الكل"     },
+    { id: "coins",  label: "عملات"    },
+    { id: "skin",   label: "سكنات"    },
+    { id: "frame",  label: "إطارات"   },
+    { id: "avatar", label: "شخصيات"   },
+  ];
+
+  return (
+    <div style={{ padding: "70px clamp(14px,4vw,28px) 90px", maxWidth: 700, margin: "0 auto" }}>
+      {/* Header */}
+      <div style={{ marginBottom: 20 }}>
+        <h2 style={{ fontWeight: 900, fontSize: 22, color: "#f4f4f8", marginBottom: 4 }}>المتجر</h2>
+        <p style={{ fontSize: 12, color: "#7a7a8a" }}>سكنات حصرية، أفاتارات، عملات</p>
+      </div>
+
+      {/* Balance */}
+      <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
+        {[
+          { icon: "🪙", val: (user?.coins ?? 0).toLocaleString(), color: "#f59e0b", bg: "rgba(245,158,11,0.08)", border: "rgba(245,158,11,0.15)" },
+          { icon: "💎", val: (user?.gems ?? 0).toString(), color: "#a78bfa", bg: "rgba(139,92,246,0.08)", border: "rgba(139,92,246,0.15)" },
+        ].map(b => (
+          <div key={b.icon} style={{ flex: 1, padding: "10px 14px", borderRadius: 12, background: b.bg, border: `1px solid ${b.border}`, display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 18 }}>{b.icon}</span>
+            <span style={{ fontWeight: 900, fontSize: 16, color: b.color }}>{b.val}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Toast message */}
+      <AnimatePresence>
+        {msg && (
+          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+            style={{ padding: "10px 14px", borderRadius: 12, marginBottom: 14, background: msg.ok ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)", border: `1px solid ${msg.ok ? "rgba(34,197,94,0.2)" : "rgba(239,68,68,0.2)"}`, color: msg.ok ? "#22c55e" : "#ef4444", fontWeight: 700, fontSize: 13, textAlign: "center" }}>
+            {msg.text}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Filters */}
+      <div style={{ display: "flex", gap: 7, marginBottom: 20, overflowX: "auto", paddingBottom: 4 }}>
+        {FILTERS.map(f => (
+          <button key={f.id} onClick={() => setFilter(f.id)} style={{
+            padding: "6px 14px", borderRadius: 99, border: "none", cursor: "pointer", fontFamily: "inherit",
+            background: filter === f.id ? "#7c3aed" : "#1e1e25",
+            color: filter === f.id ? "#fff" : "#7a7a8a",
+            fontWeight: 700, fontSize: 12, whiteSpace: "nowrap", transition: "all .15s",
+          }}>{f.label}</button>
+        ))}
+      </div>
+
+      {/* Items grid */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 180px), 1fr))", gap: 12 }}>
+        {filtered.map((item, i) => (
+          <motion.div key={item.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
+            style={{ background: "#131317", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, overflow: "hidden" }}>
+
+            {/* Item cover */}
+            <div style={{
+              height: 90,
+              background: `radial-gradient(circle at 50% 40%, ${item.color}22, #0c0c0e 70%)`,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 42,
+            }}>{item.icon}</div>
+
+            <div style={{ padding: "12px 12px 14px" }}>
+              {item.tag && (
+                <span style={{ fontSize: 9, fontWeight: 800, padding: "2px 7px", borderRadius: 99, background: `${item.color}15`, border: `1px solid ${item.color}25`, color: item.color, display: "inline-block", marginBottom: 6 }}>
+                  {item.tag}
+                </span>
+              )}
+              <div style={{ fontWeight: 800, fontSize: 13, color: "#f4f4f8", marginBottom: 3 }}>{item.name}</div>
+              <div style={{ fontSize: 10, color: "#7a7a8a", marginBottom: 12, lineHeight: 1.4 }}>{item.desc}</div>
+
+              <button
+                onClick={() => buy(item)}
+                disabled={buying === item.id}
+                style={{
+                  width: "100%", padding: "8px 0", borderRadius: 9, border: "none",
+                  background: buying === item.id ? "rgba(124,58,237,0.4)" : item.price === 0 ? "#7c3aed" : "#f59e0b",
+                  color: item.price === 0 ? "#fff" : "#000",
+                  fontWeight: 800, fontSize: 12, cursor: "pointer",
+                  fontFamily: "inherit", transition: "all .15s",
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
+                }}
+              >
+                {buying === item.id ? "..." :
+                  item.price === 0 ? <><span>💎 {item.gems}</span></> :
+                  <><span>🪙 {item.price.toLocaleString()}</span></>
+                }
+              </button>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─── PROFILE SCREEN ────────────────────────────────────────── */
+function ProfileScreen() {
+  const { user } = usePlatformStore();
+  const xp = user?.xp ?? 0;
+  const maxXp = user?.max_xp ?? 1000;
+  const pct = Math.min(100, (xp / maxXp) * 100);
+
+  return (
+    <div style={{ padding: "70px clamp(14px,4vw,28px) 90px", maxWidth: 440, margin: "0 auto" }}>
+      <h2 style={{ fontWeight: 900, fontSize: 22, color: "#f4f4f8", marginBottom: 20 }}>حسابي</h2>
+
+      {/* Profile card */}
+      <div style={{ padding: "18px 16px", background: "#131317", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 18, marginBottom: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ width: 52, height: 52, borderRadius: 14, background: "#7c3aed", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, flexShrink: 0, position: "relative" }}>
+            {user?.avatar?.startsWith("http") ? <img src={user.avatar} style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 12 }} alt=""/> : "🎮"}
+            <div style={{ position: "absolute", bottom: -6, right: -6, width: 20, height: 20, borderRadius: 7, background: "#f59e0b", color: "#000", fontSize: 9, fontWeight: 900, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              {user?.level ?? 1}
+            </div>
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 900, fontSize: 16, color: "#f4f4f8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user?.name ?? "Guest"}</div>
+            <div style={{ display: "flex", gap: 5, marginTop: 4, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 7px", borderRadius: 99, background: "rgba(245,158,11,0.1)", color: "#f59e0b" }}>🪙 {(user?.coins ?? 0).toLocaleString()}</span>
+              <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 7px", borderRadius: 99, background: "rgba(139,92,246,0.1)", color: "#a78bfa" }}>💎 {user?.gems ?? 0}</span>
+            </div>
+            <div style={{ marginTop: 8 }}>
+              <div style={{ height: 3, background: "rgba(255,255,255,0.05)", borderRadius: 99, overflow: "hidden" }}>
+                <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.8 }} style={{ height: "100%", borderRadius: 99, background: "#7c3aed" }}/>
+              </div>
+              <div style={{ fontSize: 9, color: "#404050", marginTop: 2, fontWeight: 600 }}>{xp} / {maxXp} XP</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {(!user || user.id === "guest_001") && (
+        <Link href="/auth/login" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "13px", borderRadius: 12, marginBottom: 10, background: "#7c3aed", color: "#fff", fontWeight: 800, fontSize: 14, textDecoration: "none" }}>
+          🚀 سجل دخول لحفظ تقدمك
+        </Link>
+      )}
+
+      {[
+        { label: "🏆 لوائح الشرف", href: "/leaderboards" },
+        { label: "🎯 البطولات",    href: "/tournaments"  },
+        { label: "👤 الملف الكامل", href: "/profile"     },
+      ].map(item => (
+        <Link key={item.href} href={item.href} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 14px", borderRadius: 12, marginBottom: 7, background: "#131317", border: "1px solid rgba(255,255,255,0.05)", color: "#c0c0cc", fontWeight: 700, fontSize: 13, textDecoration: "none" }}>
+          {item.label}
+          <span style={{ color: "#404050" }}>‹</span>
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+/* ─── BOTTOM NAV ────────────────────────────────────────────── */
+const TABS_NAV = [
+  { id: "home"    as Tab, label: "الرئيسية", icon: "⊞" },
+  { id: "war"     as Tab, label: "معركة",    icon: "⚔" },
+  { id: "store"   as Tab, label: "متجر",     icon: "◇" },
+  { id: "profile" as Tab, label: "حسابي",    icon: "◉" },
+];
+
+function BottomNav({ active, onChange }: { active: Tab; onChange: (t: Tab) => void }) {
+  return (
+    <nav style={{
+      position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 100,
+      background: "rgba(12,12,14,0.96)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
+      borderTop: "1px solid rgba(255,255,255,0.06)", paddingBottom: "env(safe-area-inset-bottom)",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-around", padding: "7px 0" }}>
+        {TABS_NAV.map(t => {
+          const on = t.id === active;
+          return (
+            <button key={t.id} onClick={() => onChange(t.id)} style={{
+              display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
+              padding: "5px 16px", borderRadius: 11,
+              background: on ? "rgba(124,58,237,0.12)" : "transparent",
+              border: "none", cursor: "pointer", color: on ? "#a78bfa" : "#404050",
+              fontFamily: "inherit", transition: "all .15s", minWidth: 60,
+            }}>
+              <span style={{ fontSize: 17, lineHeight: 1 }}>{t.icon}</span>
+              <span style={{ fontSize: 9, fontWeight: 800 }}>{t.label}</span>
             </button>
-            {/* Avatar */}
-            {mounted && (
-              <div className="flex items-center gap-2">
-                <div className="hidden md:block text-right">
-                  <div className="text-sm font-black leading-none">{user?.name ?? "لاعب"}</div>
-                  <div className="text-[10px] text-amber-400 font-black mt-0.5">LVL {user?.level ?? 1}</div>
-                </div>
-                <div className="relative w-9 h-9 rounded-xl overflow-hidden border-2 border-amber-400/30 bg-gradient-to-br from-indigo-600 to-purple-700 flex items-center justify-center text-lg flex-shrink-0">
-                  {user?.avatar?.startsWith("http")
-                    ? <Image src={user.avatar} alt="" fill className="object-cover" unoptimized />
-                    : (user?.avatar ?? "🎮")}
-                  <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-[#07090f]" />
-                </div>
-              </div>
-            )}
-          </div>
-        </header>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0">
-          <AnimatePresence mode="wait">
+/* ─── ROOT ──────────────────────────────────────────────────── */
+export default function PlatformHub() {
+  const { user, fetchProfile } = usePlatformStore();
+  const [tab, setTab] = useState<Tab>("home");
+  const [onlineCount, setOnlineCount] = useState<number | null>(null);
 
-            {/* ══ GAMES TAB ══ */}
-            {activeTab === "games" && (
-              <motion.div key="games"
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}>
+  useEffect(() => { fetchProfile?.(); }, []);
+  useEffect(() => {
+    const load = () => fetch("/api/online-count").then(r => r.json()).then(d => setOnlineCount(d.count ?? null)).catch(() => {});
+    load(); const t = setInterval(load, 30_000); return () => clearInterval(t);
+  }, []);
 
-                {/* ── HERO ── */}
-                <div className="relative overflow-hidden min-h-[220px] sm:min-h-[300px] md:min-h-[380px] flex items-end">
-                  {/* Background image — يتغير مع المود */}
-                  <div className="absolute inset-0">
-                    <Image src={theme.table.background} alt="" fill className="object-cover opacity-30" unoptimized style={{ transition: "opacity 0.6s" }} />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#07090f] via-[#07090f]/60 to-transparent" />
-                    <div className="absolute inset-0 bg-gradient-to-r from-[#07090f] via-transparent to-transparent" />
-                  </div>
-
-                  {/* Floating particles */}
-                  <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                    {[...Array(6)].map((_, i) => (
-                      <motion.div key={i}
-                        className="absolute text-2xl opacity-20 select-none"
-                        style={{ right: `${10 + i * 15}%`, top: `${20 + (i % 3) * 25}%` }}
-                        animate={{ y: [0, -20, 0], rotate: [0, 10, 0], opacity: [0.1, 0.25, 0.1] }}
-                        transition={{ duration: 4 + i, repeat: Infinity, delay: i * 0.8 }}>
-                        {["🁣", "🃏", "♟️", "🎲", "🏆", "⚔️"][i]}
-                      </motion.div>
-                    ))}
-                  </div>
-
-                  {/* Hero text */}
-                  <div className="relative z-10 p-4 sm:p-6 md:p-10 pb-6 sm:pb-8 md:pb-12 w-full">
-                    <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-                      <div className="flex items-center gap-2 mb-4">
-                        <span className="badge-live text-xs px-2.5 py-1">LIVE</span>
-                        <span className="bg-white/[0.08] border border-white/[0.12] text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1.5">
-                          <Zap size={11} className="text-amber-400 fill-current" /> بطولة جارية
-                        </span>
-                      </div>
-
-                      <h1 className="text-3xl sm:text-4xl md:text-6xl font-black leading-none mb-3">
-                        <span className="gold-shimmer">يالا</span>
-                        <span className="text-white"> نلعب</span>
-                      </h1>
-                      <p className="text-slate-400 text-sm sm:text-base md:text-lg mb-4 sm:mb-6 max-w-md">
-                        انضم لـ <span className="text-amber-400 font-black">28,000</span> لاعب الآن — بطولات، تحديات، ومنافسة حقيقية
-                      </p>
-
-                      <div className="flex gap-3 flex-wrap">
-                        <Link href="/games/domino/online"
-                          className="flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-sm text-black bg-gradient-to-r from-amber-400 to-orange-500 hover:brightness-110 shadow-lg shadow-amber-500/30 transition-all hover:-translate-y-0.5 hover:shadow-amber-500/50">
-                          <Play size={16} fill="currentColor" /> العب الآن
-                        </Link>
-                        <Link href="/leaderboards"
-                          className="flex items-center gap-2 px-6 py-3 rounded-2xl font-black text-sm bg-white/[0.07] border border-white/[0.12] hover:bg-white/[0.12] transition-all hover:-translate-y-0.5">
-                          <Trophy size={16} className="text-amber-400" /> المتصدرون
-                        </Link>
-                      </div>
-                    </motion.div>
-                  </div>
-                </div>
-
-                {/* ── GAMES GRID ── */}
-                <div className="px-3 sm:px-4 md:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6">
-
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-lg font-black flex items-center gap-2">
-                      <Flame size={18} className="text-amber-400" /> الألعاب الساخنة
-                    </h2>
-                    <span className="text-xs text-slate-600 font-bold">
-                      🟢 28,400 أونلاين
-                    </span>
-                  </div>
-
-                  {/* 2-col mobile, 4-col desktop */}
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
-                    {GAMES.map((g, i) => (
-                      <motion.div key={g.id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: i * 0.07 }}>
-                        <Link href={g.href} className="group block">
-                          {/* Outer frame — gradient border per game color */}
-                          <div className="relative p-[2px] rounded-2xl transition-all duration-500 hover:-translate-y-2 hover:scale-[1.02]"
-                               style={{ background: `linear-gradient(145deg, rgba(245,166,35,0.6) 0%, rgba(255,255,255,0.06) 40%, ${g.color}70 100%)`, boxShadow: `0 6px 28px rgba(0,0,0,0.55)` }}
-                               onMouseEnter={e => { e.currentTarget.style.boxShadow = `0 20px 60px ${g.shadow}, 0 0 0 1px ${g.color}60`; }}
-                               onMouseLeave={e => { e.currentTarget.style.boxShadow = `0 6px 28px rgba(0,0,0,0.55)`; }}>
-                          {/* Inner card */}
-                          <div className="relative rounded-[13px] overflow-hidden aspect-[3/4] bg-black">
-
-                            {/* BG image */}
-                            <Image src={g.bg} alt={g.title} fill className="object-cover opacity-50 group-hover:opacity-70 group-hover:scale-105 transition-all duration-700" unoptimized />
-
-                            {/* Gradient overlay */}
-                            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
-
-                            {/* Hot badge */}
-                            {g.hot && (
-                              <div className="absolute top-2.5 right-2.5 flex items-center gap-1 bg-red-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full">
-                                <Flame size={8} fill="white" /> HOT
-                              </div>
-                            )}
-
-                            {/* Emoji */}
-                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[60%] text-5xl group-hover:scale-110 transition-transform duration-400 drop-shadow-xl select-none">
-                              {EMOJIS[g.id]}
-                            </div>
-
-                            {/* Bottom info */}
-                            <div className="absolute bottom-0 left-0 right-0 p-3.5">
-                              <div className="text-white font-black text-base leading-tight mb-1">{g.title}</div>
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-1 text-[11px] font-bold" style={{ color: g.color }}>
-                                  <span className="w-1.5 h-1.5 rounded-full animate-pulse inline-block" style={{ background: g.color }} />
-                                  {g.players}
-                                </div>
-                                <span className="text-[9px] font-bold bg-white/10 px-2 py-0.5 rounded-full border border-white/10">
-                                  {g.tag}
-                                </span>
-                              </div>
-                            </div>
-
-                            {/* Play overlay */}
-                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                              <div className="w-12 h-12 rounded-full flex items-center justify-center backdrop-blur border border-white/20"
-                                   style={{ background: `${g.color}33` }}>
-                                <Play size={20} style={{ color: g.color }} fill="currentColor" />
-                              </div>
-                            </div>
-                          </div>
-                          </div>{/* end outer frame */}
-                        </Link>
-                      </motion.div>
-                    ))}
-                  </div>
-
-                  {/* ── COUNTRY BATTLE BANNER ── */}
-                  <div className="rounded-2xl overflow-hidden relative"
-                    style={{ background: `linear-gradient(135deg, ${theme.colors.primary} 0%, ${theme.colors.secondary} 100%)`,
-                      border: `1px solid ${theme.colors.border}` }}>
-                    <div className="p-4 sm:p-5 flex items-center justify-between gap-4" dir="rtl">
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-lg">⚔️</span>
-                          <span className="font-black text-sm" style={{ color: theme.colors.gold }}>معركة الدول — الأسبوع ده</span>
-                        </div>
-                        <p className="text-xs text-slate-500">العب وأضف نقاط لبلدك — الدولة اللي توصل أول ١٠٠٠ نقطة تفوز</p>
-                      </div>
-                      <div className="flex items-center gap-3 flex-shrink-0">
-                        {[ { flag:"🇸🇦", pts:"847", color:"#0a3d25" }, { flag:"🇪🇬", pts:"721", color:"#0d3348" }, { flag:"🇾🇪", pts:"534", color:"#1a0e05" } ].map((c,i) => (
-                          <div key={i} className="text-center">
-                            <div className="text-2xl">{c.flag}</div>
-                            <div className="font-black text-xs" style={{ color: theme.colors.gold }}>{c.pts}</div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="h-1 w-full" style={{ background: `linear-gradient(90deg, #0a3d25 ${847/10}%, #0d3348 ${(847+721)/20}%, #1a0e05 100%)` }}/>
-                  </div>
-
-                  {/* ── BOTTOM ROW: Leaderboard + Daily ── */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-
-                    {/* Leaderboard */}
-                    <div className="card-gold p-5 rounded-2xl">
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="font-black flex items-center gap-2 text-sm">
-                          <Trophy size={16} className="text-amber-400" /> المتصدرون الأسبوع
-                        </h3>
-                        <Link href="/leaderboards" className="text-[11px] text-amber-400 hover:text-amber-300 font-bold flex items-center gap-1">
-                          الكل <ChevronRight size={12} />
-                        </Link>
-                      </div>
-                      <div className="space-y-3">
-                        {[
-                          { n: "أبو فهد",  s: "2,480", e: "🥇" },
-                          { n: "عاصفة",    s: "2,310", e: "🥈" },
-                          { n: "الأسد",    s: "2,200", e: "🥉" },
-                        ].map((p, i) => (
-                          <div key={i} className="flex items-center gap-3">
-                            <span className="text-xl">{p.e}</span>
-                            <div className="w-8 h-8 rounded-xl bg-white/[0.06] flex items-center justify-center text-sm flex-shrink-0">🎮</div>
-                            <span className="flex-1 font-bold text-sm">{p.n}</span>
-                            <span className="font-black text-sm text-amber-400">{p.s}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Daily quest */}
-                    <div className="card p-5 rounded-2xl space-y-3">
-                      <h3 className="font-black text-sm flex items-center gap-2">
-                        <Star size={16} className="text-amber-400 fill-current" /> مهام اليوم
-                      </h3>
-                      {[
-                        { label: "العب 3 مباريات دومينو", reward: "200 🪙", pct: 66 },
-                        { label: "فز بمباراة شطرنج",       reward: "1 💎",   pct: 0  },
-                        { label: "سجّل دخولك اليومي",       reward: "100 🪙", pct: 100 },
-                      ].map((q, i) => (
-                        <div key={i}>
-                          <div className="flex justify-between text-xs mb-1.5">
-                            <span className={`font-bold ${q.pct === 100 ? "text-green-400 line-through opacity-60" : "text-slate-300"}`}>{q.label}</span>
-                            <span className="font-black text-amber-400">{q.reward}</span>
-                          </div>
-                          <div className="h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
-                            <motion.div
-                              initial={{ width: 0 }}
-                              animate={{ width: `${q.pct}%` }}
-                              transition={{ duration: 1, delay: i * 0.2 }}
-                              className={`h-full rounded-full ${q.pct === 100 ? "bg-green-500" : "bg-gradient-to-r from-amber-400 to-orange-500"}`}
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
-            {/* ══ STORE ══ */}
-            {activeTab === "store" && (
-              <motion.div key="store" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="p-4 md:p-8">
-                <UnifiedStore />
-              </motion.div>
-            )}
-
-            {/* ══ CHAT ══ */}
-            {activeTab === "chat" && (
-              <motion.div key="chat" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="p-4 md:p-8 max-w-5xl mx-auto">
-                <CommunityChat />
-              </motion.div>
-            )}
-
-            {/* ══ LIVE ══ */}
-            {activeTab === "live" && (
-              <motion.div key="live" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="p-4 md:p-8">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-black flex items-center gap-2"><Video className="text-red-500" /> بث مباشر</h2>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {[1,2,3,4,5,6].map(i => (
-                    <div key={i} className="card rounded-2xl overflow-hidden group cursor-pointer hover:-translate-y-1 transition-all">
-                      <div className="relative aspect-video bg-black">
-                        <Image src={`https://picsum.photos/seed/${i+20}/400/225`} alt="" fill className="object-cover opacity-50 group-hover:opacity-70 transition-opacity" unoptimized />
-                        <div className="absolute top-2 left-2 badge-live">LIVE</div>
-                        <div className="absolute bottom-2 left-2 text-[11px] bg-black/70 backdrop-blur text-white px-2 py-0.5 rounded-lg font-bold">
-                          {((i*1.7)%4+1).toFixed(1)}k 👁
-                        </div>
-                      </div>
-                      <div className="p-3">
-                        <div className="font-bold text-sm group-hover:text-amber-400 transition-colors">نهائي بطولة #{i}</div>
-                        <div className="text-xs text-slate-600 mt-0.5">بلوت · Pro League</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-
-            {/* ══ PROFILE ══ */}
-            {activeTab === "profile" && (
-              <motion.div key="profile" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="p-4 md:p-8">
-                <ProfileView />
-              </motion.div>
-            )}
-
-          </AnimatePresence>
-        </div>
-      </main>
+  return (
+    <div style={{ minHeight: "100dvh", background: "#0c0c0e", color: "#f4f4f8", fontFamily: "var(--font-cairo), sans-serif" }}>
+      <style>{`@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}} *{-webkit-tap-highlight-color:transparent}`}</style>
+      <Header user={user} onlineCount={onlineCount} />
+      <AnimatePresence mode="wait">
+        {tab === "home"    && <motion.div key="home"    initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} transition={{duration:.18}}><HomeScreen user={user}/></motion.div>}
+        {tab === "war"     && <motion.div key="war"     initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} transition={{duration:.18}}><WarScreen/></motion.div>}
+        {tab === "store"   && <motion.div key="store"   initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} transition={{duration:.18}}><StoreScreen/></motion.div>}
+        {tab === "profile" && <motion.div key="profile" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} transition={{duration:.18}}><ProfileScreen/></motion.div>}
+      </AnimatePresence>
+      <BottomNav active={tab} onChange={setTab} />
     </div>
   );
 }

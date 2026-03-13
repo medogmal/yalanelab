@@ -2,176 +2,159 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { 
-  LayoutDashboard, 
-  Palette, 
-  FileText, 
-  Gamepad2, 
-  ShieldAlert, 
-  LogOut, 
-  Store, 
-  Users,
-  Settings,
-  Trophy,
-  ChevronRight,
-  Menu,
-  X
-} from "lucide-react";
-import clsx from "clsx";
+import { motion, AnimatePresence } from "framer-motion";
 
-const ALLOWED_ROLES = ["admin", "super_admin", "tournament_organizer", "player_monitor"];
+const ALLOWED_ROLES = ["admin","super_admin","tournament_organizer","player_monitor"];
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
+const NAV_LINKS = [
+  { href:"/admin",             label:"الرئيسية",   icon:"⊞", roles:ALLOWED_ROLES },
+  { href:"/admin/users",       label:"المستخدمون", icon:"◉", roles:["admin","super_admin","player_monitor"] },
+  { href:"/admin/tournaments", label:"البطولات",   icon:"🎯", roles:["admin","super_admin","tournament_organizer"] },
+  { href:"/admin/games",       label:"الألعاب",    icon:"🎮", roles:["admin","super_admin"] },
+  { href:"/admin/skins",       label:"السكنات",    icon:"◇", roles:["admin","super_admin"] },
+  { href:"/admin/pages",       label:"الصفحات",    icon:"≡", roles:["admin","super_admin"] },
+  { href:"/admin/audit",       label:"السجل",      icon:"⊙", roles:["admin","super_admin"] },
+  { href:"/admin/settings",    label:"الإعدادات",  icon:"⚙", roles:["admin","super_admin"] },
+];
+
+const ROLE_LABEL: Record<string,string> = {
+  super_admin:"سوبر أدمن", admin:"أدمن",
+  tournament_organizer:"منظم بطولات", player_monitor:"مراقب",
+};
+const ROLE_COLOR: Record<string,string> = {
+  super_admin:"#f59e0b", admin:"#7c3aed", tournament_organizer:"#8b5cf6", player_monitor:"#22c55e",
+};
+
+function Sidebar({ user, path, onClose }: { user:any; path:string; onClose?:()=>void }) {
+  const roleC = user ? (ROLE_COLOR[user.role] ?? "#7c3aed") : "#7c3aed";
+  const links = NAV_LINKS.filter(l => user && l.roles.includes(user.role));
+
+  return (
+    <div style={{ height:"100%", display:"flex", flexDirection:"column", padding:"20px 14px" }}>
+      {/* Logo */}
+      <div style={{ display:"flex", alignItems:"center", gap:9, marginBottom:24 }}>
+        <div style={{ width:32, height:32, borderRadius:9, background:"#7c3aed", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:900, fontSize:15, color:"#fff" }}>ي</div>
+        <div>
+          <div style={{ fontWeight:900, fontSize:13, color:"#f4f4f8" }}>يالا نلعب</div>
+          <div style={{ fontSize:8, fontWeight:800, color:"#404050", letterSpacing:"0.1em" }}>ADMIN</div>
+        </div>
+      </div>
+
+      {/* User card */}
+      {user && (
+        <div style={{ padding:"12px", borderRadius:12, marginBottom:20, background:"#1e1e25", border:"1px solid rgba(255,255,255,0.06)" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:9 }}>
+            <div style={{ width:34, height:34, borderRadius:10, background:`${roleC}18`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, flexShrink:0 }}>👤</div>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontWeight:800, fontSize:12, color:"#f4f4f8", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{user.name}</div>
+              <span style={{ fontSize:9, fontWeight:800, padding:"1px 7px", borderRadius:99, background:`${roleC}15`, color:roleC, marginTop:2, display:"inline-block" }}>
+                {ROLE_LABEL[user.role] ?? user.role}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Nav */}
+      <nav style={{ flex:1, display:"flex", flexDirection:"column", gap:2 }}>
+        {links.map(l => {
+          const on = path === l.href || (l.href !== "/admin" && path.startsWith(l.href));
+          return (
+            <Link key={l.href} href={l.href} onClick={onClose} style={{
+              display:"flex", alignItems:"center", gap:9, padding:"9px 10px", borderRadius:10,
+              textDecoration:"none",
+              background: on ? "rgba(124,58,237,0.12)" : "transparent",
+              border: `1px solid ${on ? "rgba(124,58,237,0.2)" : "transparent"}`,
+              color: on ? "#a78bfa" : "#7a7a8a",
+              fontWeight:800, fontSize:12, transition:"all .15s",
+            }}>
+              <span style={{ fontSize:14, width:18, textAlign:"center" }}>{l.icon}</span>
+              {l.label}
+            </Link>
+          );
+        })}
+      </nav>
+
+      <div style={{ paddingTop:12, borderTop:"1px solid rgba(255,255,255,0.05)", marginTop:12 }}>
+        <Link href="/" style={{ display:"flex", alignItems:"center", gap:7, padding:"7px 10px", borderRadius:9, textDecoration:"none", color:"#404050", fontSize:11, fontWeight:700 }}>
+          ← العودة للعبة
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+export default function AdminLayout({ children }: { children:React.ReactNode }) {
+  const path   = usePathname();
   const router = useRouter();
-  const [authorized, setAuthorized] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [user, setUser] = useState<any>(null);
+  const [user,    setUser]    = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [mOpen,   setMOpen]   = useState(false);
 
   useEffect(() => {
-    fetch("/api/auth/me")
-      .then(res => res.json())
-      .then(data => {
-          if (data.user && ALLOWED_ROLES.includes(data.user.role)) {
-              setAuthorized(true);
-              setUser(data.user);
-              window.localStorage.setItem("nelab_profile", JSON.stringify(data.user));
-          } else {
-              // Fallback to local storage (not recommended but kept for existing logic)
-              const raw = window.localStorage.getItem("nelab_profile");
-              if (raw) {
-                  const p = JSON.parse(raw);
-                  if (ALLOWED_ROLES.includes(p.role)) {
-                      setAuthorized(true);
-                      setUser(p);
-                      return;
-                  }
-              }
-              router.push("/auth/login");
-          }
-      })
-      .catch(() => router.push("/auth/login"));
-  }, [router]);
+    fetch("/api/auth/me").then(r => r.json()).then(d => {
+      if (!d.user || !ALLOWED_ROLES.includes(d.user.role)) router.push("/");
+      else setUser(d.user);
+    }).catch(() => router.push("/")).finally(() => setLoading(false));
+  }, []);
 
-  if (!authorized) return (
-    <div className="min-h-screen bg-zinc-950 flex items-center justify-center text-amber-500 font-bold animate-pulse">
-       جاري التحقق من الصلاحيات...
+  if (loading) return (
+    <div style={{ position:"fixed", inset:0, display:"flex", alignItems:"center", justifyContent:"center", background:"#0c0c0e" }}>
+      <div style={{ width:36, height:36, border:"3px solid #7c3aed", borderTopColor:"transparent", borderRadius:"50%", animation:"spin .8s linear infinite" }}/>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   );
 
-  const allLinks = [
-    { href: "/admin", label: "نظرة عامة", icon: LayoutDashboard, roles: ["admin", "super_admin", "tournament_organizer", "player_monitor"] },
-    { href: "/admin/tournaments", label: "البطولات", icon: Trophy, roles: ["admin", "super_admin", "tournament_organizer"] },
-    { href: "/admin/skins", label: "إدارة المتجر", icon: Store, roles: ["admin", "super_admin"] },
-    { href: "/admin/users", label: "المستخدمين", icon: Users, roles: ["admin", "super_admin", "player_monitor"] },
-    { href: "/admin/games", label: "الألعاب", icon: Gamepad2, roles: ["admin", "super_admin"] },
-    { href: "/admin/pages", label: "المحتوى", icon: FileText, roles: ["admin", "super_admin"] },
-    { href: "/admin/audit", label: "سجلات النظام", icon: ShieldAlert, roles: ["admin", "super_admin"] },
-    { href: "/admin/settings", label: "الإعدادات", icon: Settings, roles: ["admin", "super_admin"] },
-  ];
-
-  const links = allLinks.filter(link => link.roles.includes(user?.role || "user"));
+  const activeLabel = NAV_LINKS.find(l => path === l.href || (l.href !== "/admin" && path.startsWith(l.href)))?.label ?? "الرئيسية";
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex overflow-hidden font-sans" dir="rtl">
-      {/* Sidebar Overlay (Mobile) */}
-      <div 
-        className={clsx(
-          "fixed inset-0 bg-black/80 z-40 md:hidden transition-opacity", 
-          isSidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"
-        )}
-        onClick={() => setIsSidebarOpen(false)}
-      />
+    <div style={{ display:"flex", minHeight:"100dvh", background:"#0c0c0e", color:"#f4f4f8", fontFamily:"var(--font-cairo),sans-serif" }} dir="rtl">
 
-      {/* Sidebar */}
-      <aside 
-        className={clsx(
-          "fixed md:relative z-50 w-72 h-full bg-zinc-900/50 backdrop-blur-xl border-l border-zinc-800 flex flex-col transition-transform duration-300 ease-out",
-          isSidebarOpen ? "translate-x-0" : "translate-x-full md:translate-x-0"
-        )}
-      >
-        {/* Header */}
-        <div className="p-6 border-b border-zinc-800/50 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-black bg-gradient-to-r from-amber-400 to-yellow-600 bg-clip-text text-transparent">
-              NELAB ADMIN
-            </h1>
-            <p className="text-xs text-zinc-500 font-mono mt-1">v3.0.0 PRO</p>
-          </div>
-          <button onClick={() => setIsSidebarOpen(false)} className="md:hidden text-zinc-400 hover:text-white">
-            <X size={24} />
-          </button>
-        </div>
-
-        {/* User Info */}
-        <div className="p-4 mx-4 mt-4 bg-zinc-800/50 rounded-2xl border border-zinc-700/50 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center font-bold text-black">
-            {user?.name?.[0]?.toUpperCase() || "A"}
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="font-bold text-sm truncate">{user?.name || "Admin"}</div>
-            <div className="text-[10px] text-emerald-400 uppercase font-mono tracking-wider">{user?.role}</div>
-          </div>
-        </div>
-
-        {/* Navigation */}
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-          <div className="text-xs font-bold text-zinc-500 uppercase px-4 py-2">القائمة الرئيسية</div>
-          {links.map((link) => {
-            const isActive = pathname === link.href;
-            const Icon = link.icon;
-            return (
-              <Link
-                key={link.href}
-                href={link.href}
-                onClick={() => setIsSidebarOpen(false)} // Close on mobile click
-                className={clsx(
-                  "flex items-center gap-3 px-4 py-3 rounded-xl transition-all group relative overflow-hidden",
-                  isActive 
-                    ? "bg-amber-500/10 text-amber-500 font-bold border border-amber-500/20" 
-                    : "text-zinc-400 hover:bg-zinc-800 hover:text-white"
-                )}
-              >
-                {isActive && <div className="absolute left-0 top-0 bottom-0 w-1 bg-amber-500 rounded-r-full" />}
-                <Icon size={20} className={isActive ? "text-amber-500" : "text-zinc-500 group-hover:text-white transition-colors"} />
-                <span className="flex-1">{link.label}</span>
-                {isActive && <ChevronRight size={16} className="opacity-50" />}
-              </Link>
-            );
-          })}
-        </nav>
-
-        {/* Footer */}
-        <div className="p-4 border-t border-zinc-800/50 space-y-2">
-          <Link 
-            href="/" 
-            className="flex items-center justify-center gap-2 w-full py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm transition-colors"
-          >
-            <LogOut size={16} />
-            <span>الخروج للمنصة</span>
-          </Link>
-          <div className="text-center text-[10px] text-zinc-600">
-            &copy; 2026 Yalla Nelab Inc.
-          </div>
-        </div>
+      {/* Desktop sidebar */}
+      <aside style={{ width:210, flexShrink:0, background:"#0e0e12", borderLeft:"1px solid rgba(255,255,255,0.06)", position:"sticky", top:0, height:"100dvh", zIndex:40 }} className="adm-desk">
+        <Sidebar user={user} path={path}/>
       </aside>
 
-      {/* Main Content Area */}
-      <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden relative">
-        {/* Topbar (Mobile Trigger) */}
-        <header className="md:hidden h-16 bg-zinc-900/80 backdrop-blur-md border-b border-zinc-800 flex items-center px-4 justify-between shrink-0">
-           <button onClick={() => setIsSidebarOpen(true)} className="p-2 text-zinc-300 hover:bg-zinc-800 rounded-lg">
-             <Menu size={24} />
-           </button>
-           <span className="font-bold text-amber-500">لوحة التحكم</span>
-           <div className="w-10" /> {/* Spacer */}
+      {/* Mobile overlay */}
+      <AnimatePresence>
+        {mOpen && (
+          <>
+            <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} onClick={() => setMOpen(false)}
+              style={{ position:"fixed", inset:0, zIndex:50, background:"rgba(0,0,0,0.65)", backdropFilter:"blur(4px)" }}/>
+            <motion.aside initial={{x:220}} animate={{x:0}} exit={{x:220}} transition={{type:"spring",damping:28,stiffness:300}}
+              style={{ position:"fixed", top:0, right:0, bottom:0, width:220, zIndex:60, background:"#0e0e12", borderLeft:"1px solid rgba(255,255,255,0.08)" }}>
+              <Sidebar user={user} path={path} onClose={() => setMOpen(false)}/>
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Main */}
+      <div style={{ flex:1, display:"flex", flexDirection:"column", minWidth:0 }}>
+        {/* Topbar */}
+        <header style={{ position:"sticky", top:0, zIndex:30, height:52, display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 clamp(12px,3vw,24px)", background:"rgba(12,12,14,0.95)", backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)", borderBottom:"1px solid rgba(255,255,255,0.05)", gap:10 }}>
+          <button onClick={() => setMOpen(true)} className="adm-mob" style={{ width:34, height:34, borderRadius:9, border:"1px solid rgba(255,255,255,0.08)", background:"#131317", color:"#c0c0cc", fontSize:16, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontFamily:"inherit" }}>☰</button>
+          <div style={{ flex:1 }}>
+            <span style={{ fontSize:11, color:"#404050", fontWeight:700 }}>Admin / </span>
+            <span style={{ fontSize:13, fontWeight:900, color:"#f4f4f8" }}>{activeLabel}</span>
+          </div>
+          {user && (
+            <span style={{ fontSize:10, fontWeight:800, padding:"3px 10px", borderRadius:99, background:"rgba(124,58,237,0.1)", border:"1px solid rgba(124,58,237,0.18)", color:"#a78bfa" }}>
+              {ROLE_LABEL[user.role] ?? user.role}
+            </span>
+          )}
         </header>
 
-        {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-8 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]">
+        <main style={{ flex:1, overflow:"auto", padding:"clamp(16px,3vw,28px)" }}>
           {children}
-        </div>
-      </main>
+        </main>
+      </div>
+
+      <style>{`
+        .adm-desk{display:flex!important;flex-direction:column;}
+        .adm-mob{display:none!important;}
+        @media(max-width:767px){.adm-desk{display:none!important;}.adm-mob{display:flex!important;}}
+      `}</style>
     </div>
   );
 }

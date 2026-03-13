@@ -1,152 +1,158 @@
 "use client";
-import React from "react";
-import { 
-  Users, 
-  Gamepad2, 
-  ShoppingBag, 
-  DollarSign, 
-  TrendingUp, 
-  Activity,
-  ArrowUpRight,
-  ShieldAlert
-} from "lucide-react";
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer,
-  AreaChart,
-  Area
-} from "recharts";
+import React, { useState, useEffect } from "react";
+import { motion } from "framer-motion";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
-// Mock Data
 const CHART_DATA = [
-  { name: 'Sat', users: 400, revenue: 2400 },
-  { name: 'Sun', users: 300, revenue: 1398 },
-  { name: 'Mon', users: 200, revenue: 9800 },
-  { name: 'Tue', users: 278, revenue: 3908 },
-  { name: 'Wed', users: 189, revenue: 4800 },
-  { name: 'Thu', users: 239, revenue: 3800 },
-  { name: 'Fri', users: 349, revenue: 4300 },
+  { day:"س",  users:400, rev:2400 },
+  { day:"ح",  users:300, rev:1398 },
+  { day:"ن",  users:200, rev:9800 },
+  { day:"ث",  users:278, rev:3908 },
+  { day:"ر",  users:189, rev:4800 },
+  { day:"خ",  users:239, rev:3800 },
+  { day:"ج",  users:349, rev:4300 },
 ];
 
 const STATS = [
-  { label: "المستخدمين النشطين", value: "12.5K", change: "+12%", icon: Users, color: "text-emerald-500", bg: "bg-emerald-500/10" },
-  { label: "المباريات اليومية", value: "854", change: "+5%", icon: Gamepad2, color: "text-blue-500", bg: "bg-blue-500/10" },
-  { label: "مبيعات المتجر", value: "3.2K", change: "+20%", icon: ShoppingBag, color: "text-amber-500", bg: "bg-amber-500/10" },
-  { label: "إجمالي الأرباح", value: "$45.2K", change: "+8%", icon: DollarSign, color: "text-purple-500", bg: "bg-purple-500/10" },
+  { label:"المستخدمون النشطون", value:"12.5K", change:"+12%", icon:"◉", color:"#22c55e" },
+  { label:"المباريات اليومية",  value:"٨٥٤",  change:"+5%",  icon:"🎮", color:"#00d4ff" },
+  { label:"مبيعات المتجر",      value:"3.2K",  change:"+20%", icon:"◇", color:"#f5a623" },
+  { label:"إجمالي الأرباح",     value:"$45K",  change:"+8%",  icon:"⚡", color:"#9b5fe0" },
 ];
 
-export default function AdminOverview() {
+const ALERTS = [
+  { msg:"لاعب جديد سجّل من مصر", time:"منذ 2 دقيقة",  icon:"✅", color:"#22c55e" },
+  { msg:"بطولة جديدة بدأت",      time:"منذ 10 دقائق", icon:"⚡", color:"#f5a623" },
+  { msg:"خطأ في دفع المتجر",     time:"منذ 1 ساعة",   icon:"⚠",  color:"#ff2d55"  },
+];
+
+export default function AdminDashboard() {
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h2 className="text-3xl font-black text-white">نظرة عامة</h2>
-          <p className="text-zinc-400 mt-1">متابعة حية لأداء المنصة والإحصائيات</p>
-        </div>
-        <div className="flex gap-3">
-          <button className="px-4 py-2 bg-zinc-800 text-zinc-300 rounded-xl hover:bg-zinc-700 transition-colors text-sm font-bold border border-zinc-700">
-            تصدير التقرير
-          </button>
-          <button className="px-6 py-2 bg-amber-500 text-black rounded-xl hover:bg-amber-400 transition-colors text-sm font-bold shadow-lg shadow-amber-500/20">
-            تحديث البيانات ↻
-          </button>
-        </div>
+    <div style={{display:"flex",flexDirection:"column",gap:24,maxWidth:1100}}>
+      {/* Title */}
+      <div>
+        <h1 style={{fontWeight:900,fontSize:"clamp(20px,3vw,28px)",color:"#fff",marginBottom:4}}>
+          لوحة الإدارة ◈
+        </h1>
+        <p style={{fontSize:13,fontWeight:700,color:"rgba(0,212,255,0.5)"}}>
+          مرحباً — هذه نظرة عامة على المنصة
+        </p>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {STATS.map((stat, i) => {
-          const Icon = stat.icon;
-          return (
-            <div key={i} className="bg-zinc-900/50 backdrop-blur-sm p-6 rounded-2xl border border-zinc-800 hover:border-zinc-700 transition-all group">
-              <div className="flex justify-between items-start mb-4">
-                <div className={`p-3 rounded-xl ${stat.bg} ${stat.color}`}>
-                  <Icon size={24} />
+      {/* Stats grid */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:14}}>
+        {STATS.map((s, i) => (
+          <motion.div key={s.label}
+            initial={{opacity:0,y:16}} animate={{opacity:1,y:0}}
+            transition={{delay:i*0.08}}
+            style={{
+              padding:"18px 16px",borderRadius:18,
+              background:`${s.color}08`,
+              border:`1px solid ${s.color}22`,
+              position:"relative",overflow:"hidden",
+            }}
+          >
+            <div style={{position:"absolute",top:0,left:"10%",right:"10%",height:1,background:`linear-gradient(90deg,transparent,${s.color}40,transparent)`}}/>
+            <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:8}}>
+              <div>
+                <div style={{fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.4)",marginBottom:6}}>
+                  {s.label}
                 </div>
-                <div className="flex items-center gap-1 text-emerald-400 text-xs font-bold bg-emerald-400/10 px-2 py-1 rounded-full">
-                  <TrendingUp size={12} />
-                  {stat.change}
+                <div style={{fontWeight:900,fontSize:"clamp(22px,3vw,28px)",color:"#fff"}}>
+                  {s.value}
                 </div>
               </div>
-              <div className="text-3xl font-black text-white mb-1 group-hover:scale-105 transition-transform origin-right">{stat.value}</div>
-              <div className="text-sm text-zinc-500 font-medium">{stat.label}</div>
+              <div style={{
+                width:40,height:40,borderRadius:12,flexShrink:0,
+                background:`${s.color}15`,border:`1px solid ${s.color}28`,
+                display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,
+              }}>{s.icon}</div>
             </div>
-          );
-        })}
+            <div style={{
+              display:"inline-flex",alignItems:"center",gap:4,
+              marginTop:10,padding:"2px 8px",borderRadius:99,
+              background:`${s.color}12`,color:s.color,
+              fontSize:11,fontWeight:900,
+            }}>
+              ↑ {s.change}
+            </div>
+          </motion.div>
+        ))}
       </div>
 
-      {/* Charts Section */}
-      <div className="grid md:grid-cols-3 gap-6">
-        {/* Main Chart */}
-        <div className="md:col-span-2 bg-zinc-900/50 backdrop-blur-sm p-6 rounded-2xl border border-zinc-800">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-lg font-bold text-white flex items-center gap-2">
-              <Activity size={20} className="text-amber-500" />
-              نشاط المنصة
-            </h3>
-            <select className="bg-zinc-800 border-zinc-700 text-zinc-300 text-xs rounded-lg p-2 outline-none">
-              <option>آخر 7 أيام</option>
-              <option>آخر 30 يوم</option>
-            </select>
+      {/* Chart + Alerts */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr min(320px,100%)",gap:16,alignItems:"start"}}>
+
+        {/* Chart */}
+        <motion.div initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} transition={{delay:0.35}}
+          style={{
+            padding:"20px 16px",borderRadius:20,
+            background:"rgba(5,8,24,0.7)",
+            border:"1px solid rgba(0,212,255,0.1)",
+            backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
+          }}
+        >
+          <div style={{fontWeight:900,fontSize:15,color:"#fff",marginBottom:4}}>
+            نشاط الأسبوع
           </div>
-          <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={CHART_DATA}>
-                <defs>
-                  <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
-                  </linearGradient>
-                  <linearGradient id="colorUsers" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
-                <XAxis dataKey="name" stroke="#71717a" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis stroke="#71717a" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '8px' }}
-                  itemStyle={{ color: '#fff' }}
-                />
-                <Area type="monotone" dataKey="revenue" stroke="#f59e0b" strokeWidth={2} fillOpacity={1} fill="url(#colorRevenue)" />
-                <Area type="monotone" dataKey="users" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorUsers)" />
-              </AreaChart>
-            </ResponsiveContainer>
+          <div style={{fontSize:12,fontWeight:700,color:"rgba(0,212,255,0.4)",marginBottom:16}}>
+            المستخدمون والإيرادات
           </div>
-        </div>
-        
-        {/* Recent Alerts / Activity */}
-        <div className="bg-zinc-900/50 backdrop-blur-sm p-6 rounded-2xl border border-zinc-800 flex flex-col">
-          <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-            آخر التنبيهات
-          </h3>
-          <div className="space-y-4 flex-1 overflow-y-auto pr-2 custom-scrollbar">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="flex gap-4 items-start p-3 rounded-xl bg-zinc-800/30 hover:bg-zinc-800/50 transition-colors border border-zinc-800/50">
-                <div className="p-2 bg-red-500/10 text-red-500 rounded-lg shrink-0">
-                  <ShieldAlert size={16} />
-                </div>
-                <div>
-                  <div className="text-sm font-bold text-white mb-1">محاولة دخول مشبوهة</div>
-                  <div className="text-xs text-zinc-500 leading-relaxed">تم رصد محاولة دخول من IP غير معروف للمستخدم Admin</div>
-                  <div className="text-[10px] text-zinc-600 mt-2 font-mono">منذ 10 دقائق</div>
+          <ResponsiveContainer width="100%" height={200}>
+            <AreaChart data={CHART_DATA} margin={{top:5,right:5,bottom:5,left:-10}}>
+              <defs>
+                <linearGradient id="gUsers" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%"  stopColor="#00d4ff" stopOpacity={0.25}/>
+                  <stop offset="95%" stopColor="#00d4ff" stopOpacity={0}/>
+                </linearGradient>
+                <linearGradient id="gRev" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%"  stopColor="#f5a623" stopOpacity={0.25}/>
+                  <stop offset="95%" stopColor="#f5a623" stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)"/>
+              <XAxis dataKey="day" tick={{fill:"rgba(255,255,255,0.3)",fontSize:11,fontFamily:"inherit"}} axisLine={false} tickLine={false}/>
+              <YAxis tick={{fill:"rgba(255,255,255,0.3)",fontSize:10,fontFamily:"inherit"}} axisLine={false} tickLine={false}/>
+              <Tooltip
+                contentStyle={{background:"rgba(5,8,24,0.95)",border:"1px solid rgba(0,212,255,0.2)",borderRadius:12,fontFamily:"inherit"}}
+                labelStyle={{color:"#fff",fontWeight:800}}
+                itemStyle={{fontWeight:700}}
+              />
+              <Area type="monotone" dataKey="users" stroke="#00d4ff" strokeWidth={2} fill="url(#gUsers)" name="مستخدمون"/>
+              <Area type="monotone" dataKey="rev"   stroke="#f5a623" strokeWidth={2} fill="url(#gRev)"   name="إيرادات"/>
+            </AreaChart>
+          </ResponsiveContainer>
+        </motion.div>
+
+        {/* Alerts */}
+        <motion.div initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} transition={{delay:0.42}}
+          style={{
+            padding:"18px 16px",borderRadius:20,
+            background:"rgba(5,8,24,0.7)",
+            border:"1px solid rgba(0,212,255,0.1)",
+            backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
+          }}
+        >
+          <div style={{fontWeight:900,fontSize:15,color:"#fff",marginBottom:14}}>
+            تنبيهات حديثة
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            {ALERTS.map((a, i) => (
+              <div key={i} style={{
+                display:"flex",gap:10,alignItems:"flex-start",
+                padding:"10px 12px",borderRadius:12,
+                background:`${a.color}06`,
+                border:`1px solid ${a.color}18`,
+              }}>
+                <span style={{fontSize:16,flexShrink:0}}>{a.icon}</span>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:13,fontWeight:800,color:"#fff"}}>{a.msg}</div>
+                  <div style={{fontSize:11,fontWeight:600,color:"rgba(255,255,255,0.3)",marginTop:2}}>{a.time}</div>
                 </div>
               </div>
             ))}
           </div>
-          <button className="w-full mt-4 py-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2">
-            عرض كل السجلات
-            <ArrowUpRight size={14} />
-          </button>
-        </div>
+        </motion.div>
       </div>
     </div>
   );

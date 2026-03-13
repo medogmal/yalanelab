@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { usePlatformStore } from "@/lib/platform/store";
 import { TRANSLATIONS } from "@/lib/platform/translations";
+import { getTheme } from "@/lib/platform/cultural-themes";
 import { getSocket, onSocketReady } from "@/lib/platform/socket";
 import { Color, TokenPos } from "@/lib/ludo/game";
 
@@ -49,7 +50,7 @@ const MYTHICAL_ASSETS = {
   }
 };
 
-type Phase = "splash" | "auth" | "home" | "lobby" | "create_room" | "join_room" | "game" | "game_over";
+type Phase = "splash" | "auth" | "home" | "lobby" | "create_room" | "join_room" | "game" | "game_over" | "ended";
 
 // ... [TRACK_COORDS, HOME_COORDS, BASE_POSITIONS, SAFE_INDICES remain unchanged] ...
 const TRACK_COORDS: {x: number, y: number}[] = [
@@ -89,7 +90,7 @@ export default function LudoBoardOnline2D({
   initialMatchId?: string 
 }) {
   // --- Global Store ---
-  const { user, language, soundEnabled, toggleSound, equipped, inventory, equipItem, setLanguage } = usePlatformStore();
+  const { user, language, soundEnabled, toggleSound, equipped, inventory, equipItem, setLanguage, culturalMood } = usePlatformStore();
   const t = TRANSLATIONS[language];
   const skin = equipped.ludo_skin;
 
@@ -123,6 +124,17 @@ export default function LudoBoardOnline2D({
       socket.on("ludo:state", (state) => {
         setGameState(state);
         setDiceValue(state.dice);
+      });
+
+      socket.on("ludo:game_over", ({ winner }: { winner: string }) => {
+        setPhase("ended" as Phase);
+        if (winner === mySide && user?.country) {
+          fetch("/api/country-war", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ country: user.country, delta: 1 }),
+          }).catch(() => {});
+        }
       });
 
       socket.on("ludo:rolled", ({ side, dice }) => {

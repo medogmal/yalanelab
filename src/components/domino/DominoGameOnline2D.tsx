@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { DominoGame, Tile, PlayerId } from "@/lib/domino/game";
 import { usePlatformStore } from "@/lib/platform/store";
 import { TRANSLATIONS } from "@/lib/platform/translations";
+import { getTheme } from "@/lib/platform/cultural-themes";
 import { ArrowRight, Settings, ShoppingBag, RotateCcw, ChevronDown } from "lucide-react";
 import Link from "next/link";
 
@@ -149,18 +150,22 @@ function DominoTile({
 }
 
 /* ─────────────────────────────────────────────────────────────
-   FELT BACKGROUND
+   FELT BACKGROUND — ثقافي حسب المود
 ───────────────────────────────────────────────────────────── */
-function Felt({ skin }: { skin: string }) {
+function Felt({ skin, culturalMood }: { skin: string; culturalMood?: string }) {
   const iNeon = skin === "skin_neon";
   const isDark = skin === "skin_dark";
+
+  // لو مش neon أو dark، نستخدم صورة الطاولة الثقافية
+  const theme = culturalMood ? getTheme(culturalMood as any) : null;
+  const tableImage = theme?.table?.background ?? null;
+
   return (
     <div className="absolute inset-0 pointer-events-none">
       {iNeon ? (
         <>
           <div className="absolute inset-0 bg-[#020208]" />
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,#0d0d2e_0%,#020208_70%)]" />
-          {/* Grid lines */}
           <div className="absolute inset-0 opacity-[0.04]"
                style={{ backgroundImage: "linear-gradient(#7c3aed 1px,transparent 1px),linear-gradient(90deg,#7c3aed 1px,transparent 1px)", backgroundSize: "40px 40px" }} />
         </>
@@ -169,15 +174,25 @@ function Felt({ skin }: { skin: string }) {
           <div className="absolute inset-0 bg-[#0d1117]" />
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,#161b22_0%,#0d1117_70%)]" />
         </>
+      ) : tableImage ? (
+        <>
+          {/* صورة الطاولة الثقافية */}
+          <div className="absolute inset-0" style={{ backgroundImage:`url(${tableImage})`, backgroundSize:"cover", backgroundPosition:"center" }} />
+          {/* overlay داكن خفيف عشان تتوضح الـ tiles */}
+          <div className="absolute inset-0 bg-black/40" />
+          {/* إطار ذهبي داخلي */}
+          <div className="absolute inset-0" style={{ boxShadow: theme?.table?.frameShadow ?? "inset 0 0 80px rgba(0,0,0,0.5)" }} />
+          {/* pattern ثقافي خفيف */}
+          <div className="absolute inset-0 pointer-events-none"
+            style={{ backgroundImage: theme?.visual?.pattern, backgroundSize:"56px 56px", opacity: (theme?.table?.watermarkOpacity ?? 0.12) }} />
+        </>
       ) : (
         <>
-          {/* Classic green felt */}
+          {/* Classic green felt fallback */}
           <div className="absolute inset-0 bg-[#1a4c35]" />
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,#1f5c40_0%,#0f3020_80%)]" />
-          {/* Subtle felt texture */}
           <div className="absolute inset-0 opacity-[0.06]"
                style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg width='4' height='4' viewBox='0 0 4 4' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 3h1v1H1V3zm2-2h1v1H3V1z' fill='%23ffffff' fill-opacity='1' fill-rule='evenodd'/%3E%3C/svg%3E\")" }} />
-          {/* Table edge vignette */}
           <div className="absolute inset-0 shadow-[inset_0_0_80px_rgba(0,0,0,0.5)]" />
         </>
       )}
@@ -219,7 +234,7 @@ function TimerRing({ seconds, max = 30, active }: { seconds: number; max?: numbe
    MAIN GAME COMPONENT
 ───────────────────────────────────────────────────────────── */
 export default function DominoGameOnline2D() {
-  const { user, equipped, unlockItem } = usePlatformStore();
+  const { user, equipped, unlockItem, culturalMood } = usePlatformStore();
   const skin = equipped?.domino_skin ?? "skin_ivory";
 
   const [game]        = useState(() => new DominoGame());
@@ -299,7 +314,17 @@ export default function DominoGameOnline2D() {
     game.playMove("player", tile, moves[0].side);
     setLastPlayed(tile);
     sync();
-    if (game.phase === "ended") setTimeout(() => setShowResult(true), 600);
+    if (game.phase === "ended") {
+      setTimeout(() => setShowResult(true), 600);
+      // أضف نقطة لبلد اللاعب لو فاز
+      if (game.winner === "player" && user?.country) {
+        fetch("/api/country-war", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ country: user.country, delta: 1 }),
+        }).catch(() => {});
+      }
+    }
   };
 
   const handleDraw = () => {
@@ -327,7 +352,7 @@ export default function DominoGameOnline2D() {
     <div className="relative w-full min-h-dvh overflow-hidden text-white" dir="rtl">
 
       {/* ── FELT ── */}
-      <Felt skin={skin} />
+      <Felt skin={skin} culturalMood={culturalMood} />
 
       {/* ══════════════════════════════════════════════
           LOBBY OVERLAY
@@ -339,7 +364,7 @@ export default function DominoGameOnline2D() {
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, scale: 1.05 }}
             transition={{ duration: 0.4 }}
           >
-            <Felt skin={skin} />
+            <Felt skin={skin} culturalMood={culturalMood} />
             <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
 
             <motion.div
@@ -530,42 +555,47 @@ export default function DominoGameOnline2D() {
           RESULT OVERLAY
       ══════════════════════════════════════════════ */}
       <AnimatePresence>
-        {showResult && (
-          <motion.div
-            className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+        {showResult && (() => {
+          const cTheme = getTheme(culturalMood as any);
+          const won = game.winner === "player";
+          return (
             <motion.div
-              className="card-gold rounded-3xl p-8 text-center max-w-xs w-full mx-4"
-              initial={{ scale: 0.7, y: 40 }} animate={{ scale: 1, y: 0 }}
-              transition={{ type: "spring", bounce: 0.4 }}>
+              className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <motion.div
+                className="rounded-3xl p-8 text-center max-w-xs w-full mx-4 border"
+                style={{
+                  background: cTheme.colors.secondary,
+                  borderColor: won ? cTheme.colors.gold + "60" : "rgba(255,255,255,0.08)",
+                }}
+                initial={{ scale: 0.7, y: 40 }} animate={{ scale: 1, y: 0 }}
+                transition={{ type: "spring", bounce: 0.4 }}>
 
-              <div className="text-6xl mb-4">
-                {game.winner === "player" ? "🏆" : "💀"}
-              </div>
-              <h2 className="text-3xl font-black mb-2">
-                {game.winner === "player" ? "فزت! 🎉" : "خسرت"}
-              </h2>
-              <p className="text-slate-400 text-sm mb-6">
-                {game.winner === "player"
-                  ? "أداء رائع! استمر هكذا"
-                  : `فاز ${game.winner === "ai1" ? "خصم 1" : game.winner === "ai2" ? "خصم 2" : "خصم 3"}`}
-              </p>
+                <div className="text-6xl mb-4">{won ? "🏆" : "💀"}</div>
+                <h2 className="text-3xl font-black mb-2" style={{ color: won ? cTheme.colors.gold : "white" }}>
+                  {won ? cTheme.ui.winMessage : cTheme.ui.loseMessage}
+                </h2>
+                <p className="text-slate-400 text-sm mb-6">
+                  {won
+                    ? "أداء رائع! استمر هكذا"
+                    : `فاز ${game.winner === "ai1" ? "خصم 1" : game.winner === "ai2" ? "خصم 2" : "خصم 3"}`}
+                </p>
 
-              <div className="flex flex-col gap-3">
-                <button onClick={startGame}
-                  className="w-full py-3 rounded-2xl font-black text-black
-                             bg-gradient-to-r from-amber-400 to-orange-500
-                             hover:brightness-110 transition-all shadow-lg shadow-amber-500/25">
-                  🎮 جولة جديدة
-                </button>
-                <Link href="/games/domino/online"
-                  className="w-full py-3 rounded-2xl font-bold text-sm border border-white/10 bg-white/[0.05] hover:bg-white/[0.1] transition-all text-center">
-                  الخروج
-                </Link>
-              </div>
+                <div className="flex flex-col gap-3">
+                  <button onClick={startGame}
+                    className="w-full py-3 rounded-2xl font-black text-black hover:brightness-110 transition-all shadow-lg"
+                    style={{ background: `linear-gradient(135deg, ${cTheme.colors.gold}, ${cTheme.colors.accent})` }}>
+                    🎮 جولة جديدة
+                  </button>
+                  <Link href="/games/domino/online"
+                    className="w-full py-3 rounded-2xl font-bold text-sm border border-white/10 bg-white/[0.05] hover:bg-white/[0.1] transition-all text-center">
+                    الخروج
+                  </Link>
+                </div>
+              </motion.div>
             </motion.div>
-          </motion.div>
-        )}
+          );
+        })()}
       </AnimatePresence>
 
       {/* ══════════════════════════════════════════════

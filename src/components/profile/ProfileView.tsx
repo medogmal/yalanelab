@@ -1,228 +1,262 @@
 "use client";
-import React, { useEffect, useState } from "react";
-import { usePlatformStore } from "@/lib/platform/store";
-import { Camera, Edit2, Trophy, Gamepad2, Star, Save, X, Zap, Shield, TrendingUp } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 
-type FullProfile = {
-  id: string; name: string; email: string;
-  level: number; xp: number; coins: number; gems: number;
-  tier: string; ratings: { chess: number; domino: number };
-  stats: { matchesDomino: number; winsDomino: number; lossesDomino: number; longestWinStreak: number };
-  passLevel: number; passPremium: boolean;
-};
-
+/* ════════════════════════════════════════
+   PROFILE VIEW — Star Wars Arabic UI
+════════════════════════════════════════ */
 export default function ProfileView() {
-  const { user, updateUser } = usePlatformStore();
-  const [profile, setProfile] = useState<FullProfile | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [name, setName] = useState("");
-  const [saving, setSaving] = useState(false);
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [profile, setProfile]   = useState<any>(null);
+  const [loading, setLoading]   = useState(true);
+  const [editing, setEditing]   = useState(false);
+  const [newName, setNewName]   = useState("");
+  const [saving,  setSaving]    = useState(false);
+  const [msg,     setMsg]       = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    fetch("/api/user/me", { cache: "no-store" })
+    fetch("/api/user/me")
       .then(r => r.json())
-      .then(d => {
-        if (d.user) {
-          setProfile(d.user);
-          setName(d.user.name || "");
-          // sync to global store
-          updateUser({
-            id: d.user.id,
-            name: d.user.name,
-            level: d.user.level,
-            xp: d.user.xp,
-            max_xp: 1000,
-            coins: d.user.coins,
-            gems: d.user.gems,
-            vip: d.user.tier === "pro" || d.user.tier === "elite",
-          });
-        }
-      });
+      .then(d => { if (d.user) { setProfile(d.user); setNewName(d.user.name ?? ""); } })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
 
-  async function handleSave() {
-    setSaving(true);
-    await fetch("/api/user/me", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name }),
+  async function saveName() {
+    if (!newName.trim()) return;
+    setSaving(true); setMsg(null);
+    const res  = await fetch("/api/user/me", {
+      method:"PATCH", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ name: newName.trim() }),
     });
-    setProfile(p => p ? { ...p, name } : p);
-    updateUser({ name });
-    setIsEditing(false);
+    const data = await res.json();
     setSaving(false);
+    if (res.ok) { setProfile((p: any) => ({...p, name: newName.trim()})); setEditing(false); setMsg("✓ تم الحفظ"); }
+    else         { setMsg(data.error ?? "خطأ"); }
   }
 
-  async function handleAvatarUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    if (!e.target.files?.[0]) return;
-    const fd = new FormData();
-    fd.append("file", e.target.files[0]);
-    const res = await fetch("/api/user/avatar", { method: "POST", body: fd });
-    if (res.ok) {
-      const d = await res.json();
-      updateUser({ avatar: d.url });
-    }
+  async function uploadAvatar(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]; if (!file) return;
+    const fd   = new FormData(); fd.append("avatar", file);
+    const res  = await fetch("/api/user/avatar", { method:"POST", body:fd });
+    const data = await res.json();
+    if (res.ok && data.url) setProfile((p: any) => ({...p, avatar: data.url}));
   }
 
-  const p = profile;
-  const winRate = p && (p.stats.matchesDomino > 0)
-    ? Math.round((p.stats.winsDomino / p.stats.matchesDomino) * 100)
-    : 0;
+  if (loading) return (
+    <div style={{display:"flex",alignItems:"center",justifyContent:"center",padding:80}}>
+      <div style={{
+        width:40,height:40,borderRadius:10,
+        background:"rgba(0,212,255,0.1)",border:"1.5px solid rgba(0,212,255,0.28)",
+        animation:"spin 1s linear infinite",
+      }}/>
+      <style>{`@keyframes spin{to{transform:rotate(360deg);}}`}</style>
+    </div>
+  );
+
+  if (!profile) return (
+    <div style={{textAlign:"center",padding:80}}>
+      <div style={{fontSize:14,fontWeight:700,color:"rgba(255,255,255,0.3)",marginBottom:16}}>
+        غير مسجل الدخول
+      </div>
+      <Link href="/auth/login" style={{
+        padding:"12px 28px",borderRadius:14,fontWeight:900,fontSize:14,
+        color:"#000",textDecoration:"none",
+        background:"linear-gradient(135deg,#f5a623,#ffd060)",
+      }}>سجّل الدخول</Link>
+    </div>
+  );
+
+  const xp    = profile.xp    ?? 0;
+  const maxXp = profile.max_xp ?? 1000;
+  const xpPct = Math.min(100, (xp / maxXp) * 100);
+  const level = profile.level ?? 1;
+
+  const STATS = [
+    { label:"إجمالي الألعاب",  value: profile.stats?.total_games    ?? 0, icon:"🎮", color:"#00d4ff" },
+    { label:"الانتصارات",      value: profile.stats?.wins            ?? 0, icon:"🏆", color:"#f5a623" },
+    { label:"الهزائم",         value: profile.stats?.losses          ?? 0, icon:"💀", color:"#ff2d55" },
+    { label:"نسبة الفوز",      value:`${profile.stats?.win_rate ?? 0}%`,   icon:"📊", color:"#9b5fe0" },
+    { label:"ELO الدومينو",    value: profile.domino_elo            ?? 1000, icon:"🁣", color:"#f5a623" },
+    { label:"ELO الشطرنج",     value: profile.chess_elo             ?? 1000, icon:"♟", color:"#9b5fe0" },
+  ];
 
   return (
-    <div className="max-w-2xl mx-auto p-4 md:p-6 space-y-5 text-white">
+    <div style={{
+      maxWidth:600,margin:"0 auto",
+      padding:"clamp(16px,4vw,32px)",
+      fontFamily:"var(--font-cairo),sans-serif",
+    }} dir="rtl">
 
-      {/* Header Card */}
-      <div className="relative rounded-3xl overflow-hidden border border-white/[0.08]"
-        style={{ background: "linear-gradient(135deg, #0d1f14 0%, #111 100%)" }}>
-        {/* Gold shimmer top line */}
-        <div className="h-[2px]" style={{ background: "linear-gradient(90deg,transparent,#f5c842,transparent)" }} />
-        <div className="p-6 flex items-start gap-5">
+      {/* ── Header Card ── */}
+      <motion.div initial={{opacity:0,y:16}} animate={{opacity:1,y:0}}
+        style={{
+          borderRadius:22,padding:"24px 20px",marginBottom:16,
+          position:"relative",overflow:"hidden",
+          background:"rgba(0,212,255,0.04)",
+          border:"1px solid rgba(0,212,255,0.15)",
+        }}
+      >
+        <div style={{position:"absolute",top:0,left:"5%",right:"5%",height:1,background:"linear-gradient(90deg,transparent,rgba(0,212,255,0.5),transparent)"}}/>
+
+        <div style={{display:"flex",alignItems:"flex-start",gap:16,flexWrap:"wrap"}}>
           {/* Avatar */}
-          <div className="relative flex-shrink-0">
-            <div className="w-20 h-20 rounded-2xl border-2 border-amber-400/40 overflow-hidden bg-zinc-800 shadow-lg shadow-amber-400/10">
-              {user?.avatar
-                ? <img src={user.avatar} alt="avatar" className="w-full h-full object-cover" />
-                : <div className="w-full h-full flex items-center justify-center text-4xl">🎮</div>}
+          <div style={{position:"relative",flexShrink:0}}>
+            <div
+              onClick={() => fileRef.current?.click()}
+              style={{
+                width:80,height:80,borderRadius:20,cursor:"pointer",
+                background:"rgba(0,212,255,0.08)",
+                border:"1.5px solid rgba(0,212,255,0.28)",
+                display:"flex",alignItems:"center",justifyContent:"center",
+                fontSize:profile.avatar?.startsWith("http") ? undefined : 36,
+                overflow:"hidden",position:"relative",
+              }}
+            >
+              {profile.avatar?.startsWith("http")
+                ? <img src={profile.avatar} style={{width:"100%",height:"100%",objectFit:"cover"}} alt=""/>
+                : "🎮"
+              }
+              <div style={{
+                position:"absolute",inset:0,
+                background:"rgba(0,0,0,0.4)",
+                display:"flex",alignItems:"center",justifyContent:"center",
+                opacity:0,transition:"opacity .2s",fontSize:20,
+              }}
+              onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.opacity="1"}
+              onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.opacity="0"}
+              >📷</div>
             </div>
-            <button onClick={() => fileInputRef.current?.click()}
-              className="absolute -bottom-1.5 -right-1.5 w-7 h-7 rounded-full bg-amber-500 flex items-center justify-center shadow-md hover:bg-amber-400 transition-colors">
-              <Camera size={14} className="text-black" />
-            </button>
-            <input ref={fileInputRef} type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} />
+            <input ref={fileRef} type="file" accept="image/*" style={{display:"none"}} onChange={uploadAvatar}/>
+            {/* Level badge */}
+            <div style={{
+              position:"absolute",bottom:-6,right:-6,
+              width:24,height:24,borderRadius:8,
+              background:"linear-gradient(135deg,#f5a623,#ffd060)",
+              color:"#000",fontSize:10,fontWeight:900,
+              display:"flex",alignItems:"center",justifyContent:"center",
+            }}>{level}</div>
           </div>
 
           {/* Info */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-2">
-              {isEditing ? (
-                <input value={name} onChange={e => setName(e.target.value)}
-                  className="bg-zinc-800 border border-zinc-600 rounded-lg px-3 py-1 text-xl font-black outline-none focus:border-amber-400 w-full"
+          <div style={{flex:1,minWidth:0}}>
+            {!editing ? (
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6,flexWrap:"wrap"}}>
+                <h2 style={{fontWeight:900,fontSize:"clamp(16px,3vw,22px)",color:"#fff",margin:0}}>
+                  {profile.name}
+                </h2>
+                <button onClick={() => setEditing(true)} style={{
+                  padding:"3px 10px",borderRadius:8,fontWeight:800,fontSize:11,
+                  background:"rgba(0,212,255,0.08)",color:"#00d4ff",
+                  border:"1px solid rgba(0,212,255,0.2)",cursor:"pointer",fontFamily:"inherit",
+                }}>✎ تعديل</button>
+              </div>
+            ) : (
+              <div style={{display:"flex",gap:8,marginBottom:8,flexWrap:"wrap"}}>
+                <input value={newName} onChange={e => setNewName(e.target.value)}
+                  style={{
+                    flex:1,minWidth:120,padding:"8px 12px",borderRadius:10,
+                    background:"rgba(0,212,255,0.06)",
+                    border:"1px solid rgba(0,212,255,0.3)",
+                    color:"#fff",fontWeight:700,fontSize:14,fontFamily:"inherit",outline:"none",
+                  }}
                 />
-              ) : (
-                <div>
-                  <h2 className="text-2xl font-black flex items-center gap-2">
-                    {p?.name || user?.name || "ضيف"}
-                    {(p?.tier === "pro" || p?.tier === "elite") && (
-                      <span className="px-2 py-0.5 text-[10px] font-black rounded-full"
-                        style={{ background: "linear-gradient(90deg,#f5c842,#e8a800)", color: "#1a0d00" }}>
-                        {p.tier.toUpperCase()}
-                      </span>
-                    )}
-                  </h2>
-                  <p className="text-zinc-500 text-sm font-bold mt-0.5">مستوى {p?.level || 1}</p>
-                </div>
-              )}
-              {!isEditing ? (
-                <button onClick={() => setIsEditing(true)}
-                  className="p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-colors text-zinc-400 flex-shrink-0">
-                  <Edit2 size={16} />
-                </button>
-              ) : (
-                <div className="flex gap-2 flex-shrink-0">
-                  <button onClick={handleSave} disabled={saving}
-                    className="p-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 transition-colors text-white">
-                    <Save size={16} />
-                  </button>
-                  <button onClick={() => setIsEditing(false)}
-                    className="p-2 rounded-xl bg-red-600/60 hover:bg-red-600 transition-colors text-white">
-                    <X size={16} />
-                  </button>
-                </div>
-              )}
-            </div>
+                <button onClick={saveName} disabled={saving} style={{
+                  padding:"8px 16px",borderRadius:10,fontWeight:900,fontSize:12,
+                  background:"linear-gradient(135deg,#f5a623,#ffd060)",color:"#000",
+                  border:"none",cursor:"pointer",fontFamily:"inherit",
+                }}>حفظ</button>
+                <button onClick={() => setEditing(false)} style={{
+                  padding:"8px 12px",borderRadius:10,fontWeight:800,fontSize:12,
+                  background:"rgba(255,255,255,0.06)",color:"rgba(255,255,255,0.4)",
+                  border:"1px solid rgba(255,255,255,0.08)",cursor:"pointer",fontFamily:"inherit",
+                }}>✕</button>
+              </div>
+            )}
 
-            {/* Currency */}
-            <div className="flex items-center gap-2 mt-3">
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold"
-                style={{ background: "rgba(245,196,66,0.12)", border: "1px solid rgba(245,196,66,0.25)", color: "#f5c842" }}>
-                🪙 {(p?.coins || user?.coins || 0).toLocaleString()}
-              </div>
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold"
-                style={{ background: "rgba(167,139,250,0.12)", border: "1px solid rgba(167,139,250,0.25)", color: "#a78bfa" }}>
-                💎 {(p?.gems || user?.gems || 0).toLocaleString()}
-              </div>
+            {msg && <div style={{fontSize:12,color:"#22c55e",marginBottom:6,fontWeight:700}}>{msg}</div>}
+
+            {/* Currencies */}
+            <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:10}}>
+              <span style={{fontSize:12,fontWeight:900,padding:"3px 10px",borderRadius:99,background:"rgba(245,166,35,0.12)",color:"#f5a623"}}>
+                🪙 {(profile.coins??0).toLocaleString()}
+              </span>
+              <span style={{fontSize:12,fontWeight:900,padding:"3px 10px",borderRadius:99,background:"rgba(155,95,224,0.12)",color:"#9b5fe0"}}>
+                💎 {profile.gems??0}
+              </span>
             </div>
 
             {/* XP bar */}
-            <div className="mt-3">
-              <div className="flex justify-between text-[10px] text-zinc-500 font-bold mb-1">
-                <span>XP</span>
-                <span>{p?.xp || 0} / 1000</span>
-              </div>
-              <div className="h-1.5 bg-black/40 rounded-full overflow-hidden">
+            <div style={{marginBottom:4}}>
+              <div style={{height:5,borderRadius:99,background:"rgba(255,255,255,0.06)",overflow:"hidden"}}>
                 <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${Math.min(100, ((p?.xp || 0) % 1000) / 10)}%` }}
-                  className="h-full rounded-full"
-                  style={{ background: "linear-gradient(90deg, #f5c842, #f59e0b)" }}
+                  initial={{width:0}} animate={{width:`${xpPct}%`}}
+                  transition={{duration:1,ease:"easeOut",delay:0.3}}
+                  style={{height:"100%",borderRadius:99,background:"linear-gradient(90deg,#f5a623,#ffd060)",boxShadow:"0 0 6px rgba(245,166,35,0.6)"}}
                 />
               </div>
+              <div style={{fontSize:10,color:"rgba(255,255,255,0.28)",fontWeight:700,marginTop:3}}>
+                {xp.toLocaleString()} / {maxXp.toLocaleString()} XP — المستوى {level}
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </motion.div>
 
-      {/* Rating cards */}
-      <div className="grid grid-cols-2 gap-3">
-        {[
-          { label: "دومينو ELO", value: p?.ratings.domino || 1200, icon: "🁫", color: "#34d399" },
-          { label: "شطرنج ELO", value: p?.ratings.chess || 1200, icon: "♟️", color: "#a78bfa" },
-        ].map(r => (
-          <div key={r.label} className="rounded-2xl p-4 text-center border border-white/[0.06]"
-            style={{ background: "rgba(255,255,255,0.03)" }}>
-            <div className="text-2xl mb-1">{r.icon}</div>
-            <div className="text-2xl font-black" style={{ color: r.color }}>{r.value}</div>
-            <div className="text-[11px] text-zinc-500 font-bold mt-0.5">{r.label}</div>
+      {/* ── Stats Grid ── */}
+      <motion.div initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} transition={{delay:0.12}}
+        style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:16}}
+      >
+        {STATS.map((s, i) => (
+          <div key={i} style={{
+            padding:"14px 10px",borderRadius:16,textAlign:"center",
+            background:`${s.color}06`,border:`1px solid ${s.color}18`,
+          }}>
+            <div style={{fontSize:20,marginBottom:4}}>{s.icon}</div>
+            <div style={{fontWeight:900,fontSize:"clamp(14px,2.5vw,18px)",color:"#fff",marginBottom:2}}>
+              {s.value.toLocaleString()}
+            </div>
+            <div style={{fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.3)"}}>
+              {s.label}
+            </div>
           </div>
         ))}
-      </div>
+      </motion.div>
 
-      {/* Domino stats */}
-      <div className="rounded-3xl border border-white/[0.06] p-5"
-        style={{ background: "rgba(255,255,255,0.02)" }}>
-        <h3 className="font-black text-sm text-zinc-400 mb-4 flex items-center gap-2">
-          <Trophy size={15} className="text-amber-400" /> إحصائيات الدومينو
-        </h3>
-        <div className="grid grid-cols-2 gap-2">
-          {[
-            { label: "إجمالي المباريات", value: p?.stats.matchesDomino || 0, color: "text-white" },
-            { label: "نسبة الفوز",       value: `${winRate}%`,               color: "text-emerald-400" },
-            { label: "انتصارات",          value: p?.stats.winsDomino || 0,    color: "text-green-400" },
-            { label: "هزائم",             value: p?.stats.lossesDomino || 0,  color: "text-red-400" },
-            { label: "أطول سلسلة فوز",   value: p?.stats.longestWinStreak || 0, color: "text-amber-400" },
-            { label: "الرتبة العالمية",   value: "—",                         color: "text-zinc-400" },
-          ].map(s => (
-            <div key={s.label} className="bg-black/20 rounded-xl p-3 text-center">
-              <div className={`font-black text-xl ${s.color}`}>{s.value}</div>
-              <div className="text-[10px] text-zinc-600 font-bold mt-0.5">{s.label}</div>
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* ── Quick Links ── */}
+      <motion.div initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} transition={{delay:0.2}}
+        style={{display:"flex",flexDirection:"column",gap:10}}
+      >
+        {[
+          { label:"🏆 لوائح الشرف",     href:"/leaderboards"  },
+          { label:"🎯 البطولات",         href:"/tournaments"   },
+          { label:"🎮 تاريخ المباريات",  href:"/profile/matches"},
+        ].map(item => (
+          <Link key={item.href} href={item.href} style={{
+            display:"flex",alignItems:"center",justifyContent:"space-between",
+            padding:"14px 16px",borderRadius:16,fontWeight:700,fontSize:14,
+            color:"rgba(255,255,255,0.65)",textDecoration:"none",
+            background:"rgba(255,255,255,0.03)",
+            border:"1px solid rgba(0,212,255,0.08)",
+            transition:"all .2s",
+          }}>
+            {item.label}
+            <span style={{color:"rgba(0,212,255,0.35)",fontSize:14}}>‹</span>
+          </Link>
+        ))}
 
-      {/* Royal Pass */}
-      <div className="rounded-3xl border p-5"
-        style={{
-          background: p?.passPremium ? "linear-gradient(135deg,#1c1500,#2b1f00)" : "rgba(255,255,255,0.02)",
-          borderColor: p?.passPremium ? "rgba(245,196,66,0.4)" : "rgba(255,255,255,0.06)",
+        <Link href="/auth/logout" style={{
+          display:"flex",alignItems:"center",justifyContent:"center",gap:6,
+          padding:"12px",borderRadius:16,fontWeight:800,fontSize:13,
+          color:"rgba(255,45,85,0.7)",textDecoration:"none",
+          background:"rgba(255,45,85,0.05)",
+          border:"1px solid rgba(255,45,85,0.12)",
+          marginTop:4,
         }}>
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <Shield size={16} className="text-amber-400" />
-            <span className="font-black text-sm text-amber-400">Royal Pass</span>
-            {p?.passPremium && <span className="px-2 py-0.5 text-[9px] font-black rounded-full bg-amber-400 text-black">PREMIUM</span>}
-          </div>
-          <span className="text-sm font-black text-zinc-400">المستوى {p?.passLevel || 1}</span>
-        </div>
-        {!p?.passPremium && (
-          <p className="text-[12px] text-zinc-500 text-center py-2">
-            فعّل Premium للحصول على مكافآت حصرية
-          </p>
-        )}
-      </div>
+          تسجيل الخروج
+        </Link>
+      </motion.div>
     </div>
   );
 }

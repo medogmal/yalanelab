@@ -2,48 +2,27 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 import { usePlatformStore } from "@/lib/platform/store";
-import { CULTURAL_THEMES, type CulturalMood } from "@/lib/platform/cultural-themes";
+import { ALL_MOODS, type CulturalMood } from "@/lib/platform/cultural-themes";
 
-const MOODS: { id: CulturalMood; flag: string; nameAr: string; color: string }[] = [
-  { id: "saudi",   flag: "🇸🇦", nameAr: "السلطان", color: "#0a3d25" },
-  { id: "egyptian",flag: "🇪🇬", nameAr: "النيل",   color: "#0d3348" },
-  { id: "yemeni",  flag: "🇾🇪", nameAr: "عدن",     color: "#1a0e05" },
-  { id: "classic", flag: "🎮", nameAr: "كلاسيك",  color: "#07090f" },
-];
-
-interface MoodSwitcherProps {
-  collapsed?: boolean; // في الـ sidebar الصغير
-}
-
-export default function MoodSwitcher({ collapsed = false }: MoodSwitcherProps) {
+export default function MoodSwitcher() {
   const { culturalMood, setCulturalMood } = usePlatformStore();
   const [open, setOpen] = useState(false);
-  const current = MOODS.find(m => m.id === culturalMood) || MOODS[0];
+  const current = ALL_MOODS.find(m => m.id === culturalMood) ?? ALL_MOODS[0];
 
   return (
     <div className="relative">
-      {/* الزرار الرئيسي */}
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center gap-2.5 px-2 lg:px-3 py-2.5 rounded-xl
-                   hover:bg-white/[0.06] transition-all text-sm group"
-        style={{ direction: "rtl" }}
+        className="w-full flex items-center gap-2.5 px-2 lg:px-3 py-2.5 rounded-xl hover:bg-white/[0.06] transition-all text-sm group"
+        dir="rtl"
       >
         <span className="text-xl flex-shrink-0">{current.flag}</span>
-        {!collapsed && (
-          <span className="hidden lg:block flex-1 text-right text-slate-400 font-bold group-hover:text-white transition-colors truncate">
-            {current.nameAr}
-          </span>
-        )}
-        {!collapsed && (
-          <motion.span
-            animate={{ rotate: open ? 180 : 0 }}
-            className="hidden lg:block text-slate-600 text-xs"
-          >▼</motion.span>
-        )}
+        <span className="hidden lg:block flex-1 text-right text-slate-400 font-bold group-hover:text-white transition-colors truncate">
+          {current.nameAr}
+        </span>
+        <motion.span animate={{ rotate: open ? 180 : 0 }} className="hidden lg:block text-slate-600 text-xs">▼</motion.span>
       </button>
 
-      {/* القائمة المنسدلة */}
       <AnimatePresence>
         {open && (
           <motion.div
@@ -61,29 +40,26 @@ export default function MoodSwitcher({ collapsed = false }: MoodSwitcherProps) {
           >
             <div className="p-2">
               <div className="text-[9px] font-black text-slate-600 uppercase tracking-widest px-2 py-1.5 mb-1">
-                اختر الأجواء
+                اختر أجواء بلدك
               </div>
-              {MOODS.map((mood) => {
+              {ALL_MOODS.map((mood) => {
                 const isActive = mood.id === culturalMood;
                 return (
                   <button
                     key={mood.id}
-                    onClick={() => { setCulturalMood(mood.id); setOpen(false); }}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-right"
+                    onClick={() => { setCulturalMood(mood.id as CulturalMood); setOpen(false); }}
+                    className="w-full flex items-center gap-3 px-3 py-2 rounded-xl transition-all text-right hover:bg-white/[0.05]"
                     style={{
-                      background: isActive ? `${mood.color}aa` : "transparent",
-                      border: isActive ? "1px solid rgba(255,255,255,0.12)" : "1px solid transparent",
+                      background: isActive ? `${mood.colors.felt}99` : "transparent",
+                      border: isActive ? `1px solid ${mood.colors.border}` : "1px solid transparent",
                     }}
                   >
                     <span className="text-xl">{mood.flag}</span>
                     <div className="flex-1 text-right">
-                      <div className={`font-black text-sm ${isActive ? "text-white" : "text-slate-400"}`}>
-                        {mood.nameAr}
-                      </div>
+                      <div className={`font-black text-sm ${isActive ? "text-white" : "text-slate-400"}`}>{mood.nameAr}</div>
+                      <div className="text-[10px] text-slate-600">{mood.visual.ornamentName}</div>
                     </div>
-                    {isActive && (
-                      <span className="text-amber-400 text-xs font-black">✓</span>
-                    )}
+                    {isActive && <span className="text-amber-400 text-xs font-black">✓</span>}
                   </button>
                 );
               })}

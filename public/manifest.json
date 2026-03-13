@@ -1,0 +1,64 @@
+{
+  "name": "يالا نلعب — منصة الألعاب العربية",
+  "short_name": "يالا نلعب",
+  "description": "العب دومينو، شطرنج، بلوت، لودو — وارفع شعار بلدك في معركة الدول",
+  "start_url": "/?pwa=1",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait-primary",
+  "background_color": "#020308",
+  "theme_color": "#020308",
+  "lang": "ar",
+  "dir": "rtl",
+  "categories": ["games", "entertainment"],
+  "id": "/",
+  "scope": "/",
+  "icons": [
+    { "src": "/icons/icon-72.png",   "sizes": "72x72",   "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-96.png",   "sizes": "96x96",   "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-128.png",  "sizes": "128x128", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-144.png",  "sizes": "144x144", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-152.png",  "sizes": "152x152", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-192.png",  "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icons/icon-384.png",  "sizes": "384x384", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png",  "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "screenshots": [
+    { "src": "/screenshots/home.png", "sizes": "390x844", "type": "image/png", "form_factor": "narrow", "label": "الشاشة الرئيسية" }
+  ],
+  "shortcuts": [
+    {
+      "name": "العب دومينو الآن",
+      "short_name": "دومينو",
+      "description": "ابدأ مباراة دومينو مباشرة",
+      "url": "/games/domino/online?pwa=1",
+      "icons": [{ "src": "/icons/icon-96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "معركة الدول",
+      "short_name": "معركة",
+      "description": "شوف ترتيب الدول هذا الأسبوع",
+      "url": "/?tab=war&pwa=1",
+      "icons": [{ "src": "/icons/icon-96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "لوائح الشرف",
+      "short_name": "ترتيب",
+      "description": "شوف أفضل اللاعبين",
+      "url": "/leaderboards?pwa=1",
+      "icons": [{ "src": "/icons/icon-96.png", "sizes": "96x96" }]
+    }
+  ],
+  "share_target": {
+    "action": "/share",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
+  "prefer_related_applications": false,
+  "related_applications": [],
+  "edge_side_panel": { "preferred_width": 400 }
+}

@@ -1,122 +1,155 @@
-
 "use client";
 import { useEffect, useState } from "react";
-import { Trophy, Calendar, Users, DollarSign, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { motion } from "framer-motion";
 
 type Tournament = {
-  id: string;
-  title: string;
-  gameType: "baloot" | "ludo" | "domino";
-  startDate: string;
-  status: "upcoming" | "ongoing" | "completed" | "cancelled";
-  maxParticipants: number;
-  currentParticipants: number;
-  prizePool: string;
-  description?: string;
+  id: string; title: string; gameType: "baloot" | "ludo" | "domino";
+  startDate: string; status: "upcoming" | "ongoing" | "completed" | "cancelled";
+  maxParticipants: number; currentParticipants: number; prizePool: string; description?: string;
+};
+
+const GAME_META: Record<string, { icon: string; color: string; bg: string }> = {
+  domino: { icon: "🁣", color: "#f59e0b", bg: "rgba(245,158,11,0.08)" },
+  baloot: { icon: "🃏", color: "#ec4899", bg: "rgba(236,72,153,0.08)" },
+  ludo:   { icon: "🎲", color: "#06b6d4", bg: "rgba(6,182,212,0.08)"  },
+  chess:  { icon: "♟",  color: "#8b5cf6", bg: "rgba(139,92,246,0.08)" },
+};
+
+const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
+  upcoming:  { label: "تسجيل مفتوح", color: "#3b82f6", bg: "rgba(59,130,246,0.1)" },
+  ongoing:   { label: "جارية الآن",  color: "#22c55e", bg: "rgba(34,197,94,0.1)"  },
+  completed: { label: "منتهية",       color: "#7a7a8a", bg: "rgba(255,255,255,0.05)" },
+  cancelled: { label: "ملغاة",        color: "#ef4444", bg: "rgba(239,68,68,0.08)" },
 };
 
 export default function TournamentsPage() {
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState("all");
 
   useEffect(() => {
     fetch("/api/admin/tournaments")
-      .then((r) => r.json())
-      .then(setTournaments)
-      .catch(console.error)
-      .finally(() => setLoading(false));
+      .then(r => r.json()).then(setTournaments)
+      .catch(() => {}).finally(() => setLoading(false));
   }, []);
 
+  const filtered = filter === "all" ? tournaments : tournaments.filter(t => t.status === filter);
+
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 py-12">
-      <div className="mx-auto max-w-7xl px-4">
-        <div className="flex flex-col md:flex-row justify-between items-center mb-12 gap-6">
+    <div style={{ minHeight: "100dvh", background: "#0c0c0e", color: "#f4f4f8", fontFamily: "var(--font-cairo),sans-serif" }} dir="rtl">
+      <div style={{ maxWidth: 860, margin: "0 auto", padding: "clamp(32px,5vw,56px) clamp(16px,4vw,28px) 48px" }}>
+
+        <Link href="/" style={{ display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 24, fontSize: 12, color: "#7a7a8a", textDecoration: "none", fontWeight: 700 }}>
+          ← الرئيسية
+        </Link>
+
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 28 }}>
           <div>
-            <h1 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-yellow-600 mb-4">
-              البطولات المباشرة
-            </h1>
-            <p className="text-zinc-400 text-lg max-w-2xl">
-              شارك في أقوى البطولات واربح جوائز قيمة. تنافس مع أفضل اللاعبين في البلوت، اللودو، والدومينو.
-            </p>
+            <h1 style={{ fontWeight: 900, fontSize: "clamp(24px,5vw,36px)", color: "#f4f4f8", marginBottom: 6 }}>🎯 البطولات</h1>
+            <p style={{ fontSize: 13, color: "#7a7a8a" }}>تنافس واربح جوائز قيمة</p>
           </div>
-          <div className="hidden md:block">
-            <Trophy size={120} className="text-amber-500/20 rotate-12" />
-          </div>
+          <div style={{ fontSize: 52, opacity: 0.15, lineHeight: 1 }}>🏆</div>
         </div>
 
-        {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-pulse">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-64 bg-zinc-900 rounded-2xl border border-zinc-800" />
-            ))}
+        {/* Filters */}
+        <div style={{ display: "flex", gap: 7, marginBottom: 24, overflowX: "auto", paddingBottom: 2 }}>
+          {[
+            { id: "all",      label: "الكل" },
+            { id: "upcoming", label: "مفتوحة" },
+            { id: "ongoing",  label: "جارية" },
+            { id: "completed",label: "منتهية" },
+          ].map(f => (
+            <button key={f.id} onClick={() => setFilter(f.id)} style={{
+              padding: "6px 14px", borderRadius: 99, border: "none", cursor: "pointer", fontFamily: "inherit",
+              background: filter === f.id ? "#7c3aed" : "#131317",
+              border: `1px solid ${filter === f.id ? "transparent" : "rgba(255,255,255,0.06)"}`,
+              color: filter === f.id ? "#fff" : "#7a7a8a",
+              fontWeight: 700, fontSize: 12, whiteSpace: "nowrap", transition: "all .15s",
+            }}>{f.label}</button>
+          ))}
+        </div>
+
+        {/* Loading */}
+        {loading && (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 260px), 1fr))", gap: 14 }}>
+            {[1,2,3].map(i => <div key={i} style={{ height: 240, borderRadius: 18, background: "#131317" }}/>)}
           </div>
-        ) : tournaments.length === 0 ? (
-          <div className="text-center py-24 bg-zinc-900/30 rounded-3xl border border-zinc-800 border-dashed">
-            <Trophy size={64} className="mx-auto text-zinc-600 mb-4" />
-            <h3 className="text-xl font-bold text-zinc-400">لا توجد بطولات نشطة حالياً</h3>
-            <p className="text-zinc-500 mt-2">تابعنا قريباً للمزيد من المنافسات!</p>
+        )}
+
+        {/* Empty */}
+        {!loading && filtered.length === 0 && (
+          <div style={{ textAlign: "center", padding: "60px 20px", background: "#131317", borderRadius: 20, border: "1px dashed rgba(255,255,255,0.07)" }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>🏆</div>
+            <div style={{ fontWeight: 800, fontSize: 16, color: "#f4f4f8", marginBottom: 6 }}>لا توجد بطولات نشطة حالياً</div>
+            <div style={{ fontSize: 13, color: "#7a7a8a" }}>تابعنا قريباً للمزيد من المنافسات!</div>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {tournaments.map((t) => (
-              <div key={t.id} className="group relative bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden hover:border-amber-500/50 transition-all hover:-translate-y-1 hover:shadow-2xl hover:shadow-amber-500/10">
-                {/* Status Badge */}
-                <div className="absolute top-4 left-4 z-10">
-                  <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
-                    t.status === 'upcoming' ? 'bg-blue-500 text-white' :
-                    t.status === 'ongoing' ? 'bg-green-500 text-white animate-pulse' :
-                    'bg-zinc-700 text-zinc-300'
-                  }`}>
-                    {t.status === 'upcoming' ? 'تسجيل مفتوح' : 
-                     t.status === 'ongoing' ? 'جارية الآن' : 
-                     t.status === 'completed' ? 'منتهية' : 'ملغاة'}
-                  </span>
-                </div>
+        )}
 
-                {/* Card Header (Game Image Placeholder) */}
-                <div className={`h-40 w-full flex items-center justify-center ${
-                  t.gameType === 'baloot' ? 'bg-gradient-to-br from-emerald-900 to-emerald-950' :
-                  t.gameType === 'ludo' ? 'bg-gradient-to-br from-red-900 to-red-950' :
-                  'bg-gradient-to-br from-indigo-900 to-indigo-950'
-                }`}>
-                  <h3 className="text-3xl font-black text-white/10 uppercase tracking-widest">{t.gameType}</h3>
-                </div>
+        {/* Cards grid */}
+        {!loading && filtered.length > 0 && (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 260px), 1fr))", gap: 14 }}>
+            {filtered.map((t, i) => {
+              const gm = GAME_META[t.gameType] ?? GAME_META.domino;
+              const sm = STATUS_META[t.status] ?? STATUS_META.upcoming;
+              const fillPct = t.maxParticipants > 0 ? (t.currentParticipants / t.maxParticipants) * 100 : 0;
 
-                {/* Content */}
-                <div className="p-6 space-y-6">
-                  <div>
-                    <h3 className="text-2xl font-bold text-white mb-2 group-hover:text-amber-400 transition-colors">{t.title}</h3>
-                    <p className="text-sm text-zinc-400 line-clamp-2">{t.description || "لا يوجد وصف إضافي"}</p>
-                  </div>
+              return (
+                <motion.div key={t.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}
+                  style={{ background: "#131317", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 18, overflow: "hidden" }}>
 
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between text-sm">
-                      <div className="flex items-center gap-2 text-zinc-400">
-                        <Calendar size={16} className="text-amber-500" />
-                        <span>{new Date(t.startDate).toLocaleDateString('ar-EG')}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-zinc-400">
-                        <Users size={16} className="text-blue-500" />
-                        <span>{t.currentParticipants}/{t.maxParticipants}</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 text-amber-400 font-bold bg-amber-400/10 p-3 rounded-xl justify-center border border-amber-400/20">
-                      <DollarSign size={18} />
-                      <span>مجموع الجوائز: {t.prizePool}</span>
+                  {/* Cover */}
+                  <div style={{ height: 110, background: gm.bg, display: "flex", alignItems: "center", justifyContent: "center", position: "relative", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                    <div style={{ fontSize: 52, filter: `drop-shadow(0 0 20px ${gm.color}60)` }}>{gm.icon}</div>
+                    <div style={{ position: "absolute", top: 10, right: 10, padding: "3px 9px", borderRadius: 99, background: sm.bg, border: `1px solid ${sm.color}25`, fontSize: 10, fontWeight: 800, color: sm.color }}>
+                      {sm.label}
                     </div>
                   </div>
 
-                  <button 
-                    disabled={t.status !== 'upcoming'}
-                    className="w-full py-3 bg-white text-black font-bold rounded-xl hover:bg-zinc-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  >
-                    {t.status === 'upcoming' ? 'سجل الآن' : 'عرض التفاصيل'}
-                    <ArrowRight size={18} />
-                  </button>
-                </div>
-              </div>
-            ))}
+                  {/* Content */}
+                  <div style={{ padding: "14px 14px 16px" }}>
+                    <div style={{ fontWeight: 900, fontSize: 15, color: "#f4f4f8", marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}</div>
+                    <div style={{ fontSize: 11, color: "#7a7a8a", marginBottom: 14, lineHeight: 1.5 }}>{t.description || "بطولة تنافسية"}</div>
+
+                    {/* Participants bar */}
+                    <div style={{ marginBottom: 10 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5, fontSize: 10, fontWeight: 700 }}>
+                        <span style={{ color: "#7a7a8a" }}>المشاركون</span>
+                        <span style={{ color: "#f4f4f8" }}>{t.currentParticipants}/{t.maxParticipants}</span>
+                      </div>
+                      <div style={{ height: 3, background: "rgba(255,255,255,0.05)", borderRadius: 99, overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: `${fillPct}%`, background: gm.color, borderRadius: 99, transition: "width .6s" }}/>
+                      </div>
+                    </div>
+
+                    {/* Prize */}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", borderRadius: 10, background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.12)", marginBottom: 12 }}>
+                      <span style={{ fontSize: 11, color: "#7a7a8a", fontWeight: 700 }}>مجموع الجوائز</span>
+                      <span style={{ fontSize: 13, fontWeight: 900, color: "#f59e0b" }}>{t.prizePool}</span>
+                    </div>
+
+                    {/* Date */}
+                    <div style={{ fontSize: 11, color: "#7a7a8a", marginBottom: 12 }}>
+                      📅 {new Date(t.startDate).toLocaleDateString("ar-EG")}
+                    </div>
+
+                    {/* CTA */}
+                    <button
+                      disabled={t.status !== "upcoming"}
+                      style={{
+                        width: "100%", padding: "10px", borderRadius: 11, border: "none", cursor: t.status === "upcoming" ? "pointer" : "not-allowed",
+                        background: t.status === "upcoming" ? "#7c3aed" : "#1e1e25",
+                        color: t.status === "upcoming" ? "#fff" : "#404050",
+                        fontWeight: 800, fontSize: 13, fontFamily: "inherit", transition: "all .15s",
+                      }}
+                    >
+                      {t.status === "upcoming" ? "سجّل الآن" : t.status === "ongoing" ? "جارية الآن" : "عرض التفاصيل"}
+                    </button>
+                  </div>
+                </motion.div>
+              );
+            })}
           </div>
         )}
       </div>

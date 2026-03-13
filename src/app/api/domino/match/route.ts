@@ -1,10 +1,16 @@
 import { getCurrentUser } from "@/lib/auth/session";
-import { recordDominoMatch, applyDominoEloResult, grantXp, grantCoins } from "@/lib/auth/store";
+import { recordDominoMatch, grantXp, grantCoins } from "@/lib/auth/store";
+import { rateLimit, getIp } from "@/lib/rateLimit";
 
 export const dynamic = "force-dynamic";
 
 // POST /api/domino/match — تسجيل نتيجة مباراة دومينو
 export async function POST(req: Request) {
+  // rate limit: max 30 matches per minute per IP
+  if (!rateLimit(getIp(req), { max: 30, windowMs: 60_000 })) {
+    return Response.json({ error: "too_many_requests" }, { status: 429 });
+  }
+
   const u = await getCurrentUser();
   if (!u) return Response.json({ error: "unauthorized" }, { status: 401 });
 
@@ -20,7 +26,6 @@ export async function POST(req: Request) {
 
   recordDominoMatch(u.id, result, durationSec);
 
-  // منح XP وكوينز من الـ EndDialog
   if (xpReward && xpReward > 0) grantXp(u.id, xpReward);
   if (coinsReward && coinsReward > 0) grantCoins(u.id, coinsReward);
 

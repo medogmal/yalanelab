@@ -15,6 +15,7 @@ import { usePlatformStore } from "@/lib/platform/store";
 import { TRANSLATIONS } from "@/lib/platform/translations";
 import { useSocket } from "@/lib/platform/socket";
 import GameWrapper from "@/components/platform/GameWrapper";
+import { getTheme } from "@/lib/platform/cultural-themes";
 
 // --- Types ---
 
@@ -104,7 +105,8 @@ function getMaterialDifference(pieces: PieceOnBoard[]) {
 // --- Main Component ---
 
 export default function ChessGameOnline2D() {
-  const { user, equipped, unlockItem, language } = usePlatformStore();
+  const { user, equipped, unlockItem, language, culturalMood } = usePlatformStore();
+  const cTheme = getTheme(culturalMood);
   const { socket } = useSocket();
   const t = TRANSLATIONS[language];
   
@@ -256,7 +258,15 @@ export default function ChessGameOnline2D() {
   const handleGameOver = React.useCallback((winner: "w" | "b" | "draw", reason: string) => {
     setGameResult({ winner, reason });
     playSound("end");
-  }, [playSound]);
+    // أضف نقطة لبلد اللاعب لو فاز
+    if (winner !== "draw" && winner === player.color && user?.country) {
+      fetch("/api/country-war", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ country: user.country, delta: 1 }),
+      }).catch(() => {});
+    }
+  }, [playSound, player.color, user]);
 
   const makeAiMove = React.useCallback(async () => {
     setIsAiThinking(true);
@@ -784,7 +794,11 @@ export default function ChessGameOnline2D() {
     const isPlayerTurn = game.turn() === player.color;
     
     return (
-      <GameWrapper className={`min-h-screen ${theme.bg}`}>
+      <GameWrapper className={`min-h-screen ${theme.bg}`} style={
+        cTheme.table.backgroundImage
+          ? { backgroundImage: `url(${cTheme.table.backgroundImage})`, backgroundSize: "cover", backgroundPosition: "center" }
+          : {}
+      }>
         
         {/* Top Bar (Opponent) */}
         <div className={`p-4 flex items-center justify-between ${theme.panel}`}>

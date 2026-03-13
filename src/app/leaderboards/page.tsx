@@ -2,23 +2,15 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Trophy, TrendingUp, Gamepad2, ChevronRight } from "lucide-react";
 
 type Entry = {
-  id: string;
-  name: string;
-  rating: number;
-  rank: number;
-  wins?: number;
-  losses?: number;
-  matches?: number;
-  streak?: number;
-  level?: number;
+  id: string; name: string; rating: number; rank: number;
+  wins?: number; losses?: number; matches?: number; streak?: number; level?: number;
 };
 
 const GAMES = [
-  { id: "domino", label: "الدومينو", icon: "🁫", color: "#34d399", api: "/api/leaderboard/domino?limit=20" },
-  { id: "chess",  label: "الشطرنج", icon: "♟️", color: "#60a5fa", api: "/api/leaderboard/chess?limit=20"  },
+  { id: "domino", label: "دومينو", icon: "🁣", color: "#f59e0b", api: "/api/leaderboard/domino?limit=20" },
+  { id: "chess",  label: "شطرنج", icon: "♟",  color: "#8b5cf6", api: "/api/leaderboard/chess?limit=20"  },
 ];
 
 export default function LeaderboardsPage() {
@@ -32,7 +24,7 @@ export default function LeaderboardsPage() {
     setLoading(true);
     fetch(g.api, { cache: "no-store" })
       .then(r => r.json())
-      .then(data => setEntries(data.items || data.entries || []))
+      .then(d => setEntries(d.items || d.entries || []))
       .catch(() => setEntries([]))
       .finally(() => setLoading(false));
   }, [game]);
@@ -40,116 +32,104 @@ export default function LeaderboardsPage() {
   const active = GAMES.find(g => g.id === game)!;
 
   return (
-    <div className="min-h-screen bg-[#07090f] text-white" dir="rtl">
-      {/* Hero */}
-      <div className="relative overflow-hidden py-16 px-4">
-        <div className="absolute inset-0 bg-[url('/domino/tables/sultan.png')] bg-cover bg-center opacity-10" />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#07090f]" />
-        <div className="relative z-10 max-w-3xl mx-auto text-center">
-          <h1 className="text-4xl sm:text-5xl font-black mb-2 gold-shimmer">لوحة الأبطال</h1>
-          <p className="text-zinc-400">المتصدرون في كل الألعاب</p>
-        </div>
-      </div>
+    <div style={{ minHeight: "100dvh", background: "#0c0c0e", color: "#f4f4f8", fontFamily: "var(--font-cairo),sans-serif" }} dir="rtl">
 
-      {/* Game Tabs */}
-      <div className="max-w-3xl mx-auto px-4 mb-8">
-        <div className="flex gap-3">
+      {/* Header */}
+      <div style={{ padding: "clamp(32px,5vw,56px) clamp(16px,4vw,28px) 0", maxWidth: 680, margin: "0 auto" }}>
+        <Link href="/" style={{ display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 24, fontSize: 12, color: "#7a7a8a", textDecoration: "none", fontWeight: 700 }}>
+          ← الرئيسية
+        </Link>
+        <h1 style={{ fontWeight: 900, fontSize: "clamp(24px,5vw,36px)", color: "#f4f4f8", marginBottom: 6 }}>
+          🏆 لوحة الأبطال
+        </h1>
+        <p style={{ fontSize: 13, color: "#7a7a8a", marginBottom: 28 }}>المتصدرون في كل الألعاب</p>
+
+        {/* Game tabs */}
+        <div style={{ display: "flex", gap: 8, marginBottom: 28 }}>
           {GAMES.map(g => (
-            <button key={g.id} onClick={() => setGame(g.id)}
-              className={`flex items-center gap-2 px-5 py-3 rounded-2xl font-black text-sm transition-all ${game === g.id
-                ? "text-black scale-105"
-                : "glass-dark border border-white/[0.06] text-zinc-400 hover:text-white"}`}
-              style={game === g.id ? { background: g.color, boxShadow: `0 4px 20px ${g.color}44` } : {}}>
-              <span className="text-xl">{g.icon}</span> {g.label}
+            <button key={g.id} onClick={() => setGame(g.id)} style={{
+              display: "flex", alignItems: "center", gap: 7,
+              padding: "8px 18px", borderRadius: 11, border: "none", cursor: "pointer", fontFamily: "inherit",
+              background: game === g.id ? g.color : "#131317",
+              border: `1px solid ${game === g.id ? "transparent" : "rgba(255,255,255,0.07)"}`,
+              color: game === g.id ? (g.color === "#f59e0b" ? "#000" : "#fff") : "#7a7a8a",
+              fontWeight: 800, fontSize: 13, transition: "all .15s",
+            }}>
+              <span style={{ fontSize: 16 }}>{g.icon}</span> {g.label}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Leaderboard */}
-      <div className="max-w-3xl mx-auto px-4 pb-16">
+      <div style={{ maxWidth: 680, margin: "0 auto", padding: "0 clamp(16px,4vw,28px) 48px" }}>
         {loading ? (
-          <div className="flex justify-center py-20">
-            <div className="w-10 h-10 border-4 border-amber-400 border-t-transparent rounded-full animate-spin" />
+          <div style={{ display: "flex", justifyContent: "center", padding: "60px 0" }}>
+            <div style={{ width: 36, height: 36, border: `3px solid ${active.color}`, borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }}/>
+            <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
           </div>
         ) : entries.length === 0 ? (
-          <div className="text-center py-20 text-zinc-500">
-            <div className="text-6xl mb-4">🏆</div>
-            <p className="font-bold">لا يوجد لاعبون بعد</p>
-            <p className="text-sm mt-2">العب أول مباراة لتظهر هنا!</p>
-            <Link href={`/games/${game}/online`} className="inline-block mt-6 px-8 py-3 bg-amber-500 text-black font-black rounded-2xl hover:bg-amber-400 transition-colors">
+          <div style={{ textAlign: "center", padding: "60px 20px", background: "#131317", borderRadius: 20, border: "1px dashed rgba(255,255,255,0.07)" }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>🏆</div>
+            <div style={{ fontWeight: 800, fontSize: 16, color: "#f4f4f8", marginBottom: 6 }}>لا يوجد لاعبون بعد</div>
+            <div style={{ fontSize: 13, color: "#7a7a8a", marginBottom: 20 }}>العب أول مباراة لتظهر هنا!</div>
+            <Link href={`/games/${game}/online`} style={{ padding: "10px 22px", borderRadius: 10, background: active.color, color: active.color === "#f59e0b" ? "#000" : "#fff", fontWeight: 800, fontSize: 13, textDecoration: "none" }}>
               العب الآن
             </Link>
           </div>
         ) : (
-          <div className="space-y-2">
-            {/* Top 3 Podium */}
+          <>
+            {/* Podium top 3 */}
             {entries.length >= 3 && (
-              <div className="grid grid-cols-3 gap-3 mb-8">
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1.1fr 1fr", gap: 10, marginBottom: 24 }}>
                 {[entries[1], entries[0], entries[2]].map((e, i) => {
                   if (!e) return null;
+                  const medals = ["🥈", "🥇", "🥉"];
                   const isFirst = i === 1;
-                  const medal = ["🥈", "🥇", "🥉"][i];
                   return (
-                    <motion.div key={e.id}
-                      initial={{ y: 20, opacity: 0 }}
-                      animate={{ y: 0, opacity: 1 }}
-                      transition={{ delay: i * 0.1 }}
-                      className={`glass-dark rounded-3xl p-4 text-center border transition-all ${isFirst ? "border-amber-400/40 scale-105" : "border-white/[0.06]"}`}
-                      style={isFirst ? { boxShadow: "0 0 30px rgba(245,166,35,0.15)" } : {}}>
-                      <div className="text-3xl mb-1">{medal}</div>
-                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-zinc-700 to-zinc-800 flex items-center justify-center text-xl mx-auto mb-2">
-                        {e.name?.charAt(0) || "?"}
+                    <motion.div key={e.id} initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: i * 0.1 }}
+                      style={{ background: isFirst ? "rgba(245,158,11,0.06)" : "#131317", border: `1px solid ${isFirst ? "rgba(245,158,11,0.2)" : "rgba(255,255,255,0.06)"}`, borderRadius: 16, padding: "16px 10px", textAlign: "center" }}>
+                      <div style={{ fontSize: 26, marginBottom: 6 }}>{medals[i]}</div>
+                      <div style={{ width: 40, height: 40, borderRadius: 12, background: "#1e1e25", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 8px", fontWeight: 900, fontSize: 16, color: "#f4f4f8" }}>
+                        {e.name?.[0] ?? "?"}
                       </div>
-                      <div className="font-black text-sm truncate">{e.name}</div>
-                      <div className="font-mono font-black mt-1" style={{ color: active.color }}>{e.rating}</div>
+                      <div style={{ fontWeight: 800, fontSize: 12, color: "#f4f4f8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.name}</div>
+                      <div style={{ fontWeight: 900, fontSize: 14, color: active.color, marginTop: 3 }}>{e.rating}</div>
                     </motion.div>
                   );
                 })}
               </div>
             )}
 
-            {/* Full List */}
-            <AnimatePresence>
-              {entries.map((e, idx) => (
-                <motion.div key={e.id}
-                  initial={{ opacity: 0, x: -16 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: idx * 0.03 }}
-                  className="glass-dark rounded-2xl p-4 border border-white/[0.06] flex items-center gap-4 hover:border-white/[0.12] transition-colors group">
-                  {/* Rank */}
-                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-sm flex-shrink-0
-                    ${e.rank === 1 ? "bg-amber-400 text-black" : e.rank === 2 ? "bg-zinc-300 text-black" : e.rank === 3 ? "bg-orange-700 text-white" : "bg-white/[0.06] text-zinc-400"}`}>
-                    {e.rank}
-                  </div>
-
-                  {/* Avatar */}
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-zinc-700 to-zinc-800 flex items-center justify-center font-black text-base flex-shrink-0">
-                    {e.name?.charAt(0) || "?"}
-                  </div>
-
-                  {/* Name + Stats */}
-                  <div className="flex-1 min-w-0">
-                    <div className="font-black text-sm truncate">{e.name}</div>
-                    {e.matches !== undefined && (
-                      <div className="text-[11px] text-zinc-500 font-bold mt-0.5">
-                        <span className="text-emerald-400">{e.wins || 0}ف</span>
-                        <span className="mx-1 text-zinc-700">/</span>
-                        <span className="text-red-400">{e.losses || 0}خ</span>
-                        <span className="mx-1 text-zinc-700">·</span>
-                        {e.matches} مباراة
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Rating */}
-                  <div className="font-mono font-black text-lg flex-shrink-0" style={{ color: active.color }}>
-                    {e.rating}
-                  </div>
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </div>
+            {/* Full list */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <AnimatePresence>
+                {entries.map((e, idx) => (
+                  <motion.div key={e.id} initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: idx * 0.025 }}
+                    style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", background: "#131317", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 13 }}>
+                    <div style={{ width: 28, height: 28, borderRadius: 9, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 12, flexShrink: 0, background: e.rank <= 3 ? active.color : "#1e1e25", color: e.rank <= 3 && active.color === "#f59e0b" ? "#000" : "#fff" }}>
+                      {e.rank}
+                    </div>
+                    <div style={{ width: 34, height: 34, borderRadius: 10, background: "#1e1e25", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 14, flexShrink: 0 }}>
+                      {e.name?.[0] ?? "?"}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 800, fontSize: 13, color: "#f4f4f8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.name}</div>
+                      {e.matches !== undefined && (
+                        <div style={{ fontSize: 10, color: "#7a7a8a", marginTop: 1 }}>
+                          <span style={{ color: "#22c55e" }}>{e.wins ?? 0}ف</span>
+                          <span style={{ color: "#404050", margin: "0 3px" }}>/</span>
+                          <span style={{ color: "#ef4444" }}>{e.losses ?? 0}خ</span>
+                          <span style={{ color: "#404050", margin: "0 3px" }}>·</span>
+                          {e.matches} مباراة
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ fontWeight: 900, fontSize: 15, color: active.color, flexShrink: 0 }}>{e.rating}</div>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+          </>
         )}
       </div>
     </div>

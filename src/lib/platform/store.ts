@@ -18,6 +18,7 @@ export type UserProfile = {
   gems: number;
   vip: boolean;
   bio?: string;
+  country?: string;
   stats?: {
     games_played: number;
     wins: number;
@@ -157,12 +158,13 @@ export const usePlatformStore = create<PlatformState>()(
                 id: data.user.id || state.user?.id,
               },
               inventory: data.inventory || [],
+              ...(data.user.country ? { country: data.user.country } : {}),
               equipped: {
                 avatar: data.user.avatarSkin || "avatar_king",
                 ludo_skin: data.user.ludoSkin || "skin_default",
                 chess_skin: data.user.chessSkin || "skin_wood",
                 baloot_skin: data.user.balootSkin || "skin_classic",
-                domino_skin: data.user.dominoSkin || "skin_ivory",
+                domino_skin: data.user.dominoSkin || "default_domino",
               }
             }));
           }
@@ -175,8 +177,8 @@ export const usePlatformStore = create<PlatformState>()(
         avatar: "avatar_king",
         ludo_skin: "skin_default",
         chess_skin: "skin_wood",
-        domino_skin: "skin_ivory",
-        baloot_skin: "skin_classic"
+        domino_skin: "default_domino",
+        baloot_skin: "skin_classic",
       },
       
       unlockItem: (item) => set((state) => ({ inventory: [...state.inventory, item] })),

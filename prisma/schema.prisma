@@ -130,3 +130,27 @@ model MatchParticipant {
 
   joinedAt  DateTime @default(now())
 }
+
+// ══════════════════════════════════════════════
+// نظام الحرب بين الدول — Country War System
+// ══════════════════════════════════════════════
+
+model CountryScore {
+  id        Int      @id @default(autoincrement())
+  country   String   // EG | SA | YE | AE | KW | OTHER
+  week      String   // "2026-W12" — يتحدث كل جمعة
+  score     Int      @default(0)
+  wins      Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@unique([country, week])
+}
+
+model DailyStreak {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  current      Int      @default(0)
+  longest      Int      @default(0)
+  lastClaimedAt DateTime?
+  updatedAt    DateTime @updatedAt
+}

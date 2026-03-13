@@ -1,0 +1,21 @@
+{
+  "branding": {
+    "siteName": "Yalla Nelab",
+    "description": "منصة الألعاب الجماعية الأولى في العالم العربي",
+    "logoUrl": "/branding/1772931007554_logo.png",
+    "faviconUrl": null,
+    "primaryColor": "#f59e0b"
+  },
+  "content": {
+    "heroTitle": "شارك الآن في البطولات المباشرة",
+    "heroSubtitle": "مرحباً بكم في منصة yalla nelab",
+    "footerText": "© 2026 yalla nelab",
+    "loginTitle": "تسجيل الدخول",
+    "signupTitle": "إنشاء حساب جديد"
+  },
+  "features": {
+    "maintenanceMode": false,
+    "allowRegistration": true,
+    "enableTournaments": true
+  }
+}

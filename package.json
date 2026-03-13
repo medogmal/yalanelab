@@ -3,11 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "ts-node -r tsconfig-paths/register --compiler-options \"{\\\"module\\\":\\\"commonjs\\\"}\" server.ts",
+    "dev": "cross-env NODE_ENV=development ts-node -r tsconfig-paths/register --compiler-options \"{\\\"module\\\":\\\"commonjs\\\"}\" server.ts",
     "build": "next build",
     "start": "cross-env NODE_ENV=production ts-node -r tsconfig-paths/register server.ts",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "icons": "node scripts/gen-icons.mjs",
+    "setup": "npx prisma migrate dev && node scripts/gen-icons.mjs",
+    "db:reset": "npx prisma migrate reset --force && npx prisma migrate dev"
   },
   "dependencies": {
     "@next-auth/prisma-adapter": "^1.0.7",

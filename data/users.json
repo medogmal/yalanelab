@@ -1,0 +1,127 @@
+[
+  {
+    "id": "9ac3f3d2-441e-4443-a8b8-aac2e3c5467f",
+    "name": "medo",
+    "email": "sldv.smsm22@gmail.com",
+    "passHash": "eb9e6b11dfb3add583e89db18cd16d6dcc8a2bd768bb1a961b7ceeb943da20c4563b045596af47a109dbdf1353386767c75509eafd2fb9b0ee605c83ef9436b0",
+    "salt": "f43597c6f9750114855c63af0d08d86c",
+    "createdAt": 1771893905917,
+    "ratings": {
+      "chess": 1200
+    },
+    "tier": "free",
+    "cosmetics": {
+      "pieceSet": "lichess",
+      "boardTheme": "classic"
+    },
+    "unlockedPieceSets": [
+      "lichess",
+      "staunton"
+    ],
+    "unlockedBoardThemes": [
+      "classic"
+    ],
+    "streakDays": 1,
+    "lastDailyRewardAt": 20512,
+    "xp": 30,
+    "level": 1,
+    "matchesDomino": 3,
+    "lossesDomino": 3,
+    "currentWinStreakDomino": 0,
+    "totalDurationDomino": 269,
+    "dailyCycleDay": 2,
+    "passXP": 20,
+    "dailyMissionsStartDay": 20512,
+    "weeklyMissionsStartDay": 20510,
+    "dailyMissions": [
+      {
+        "id": "daily_win3",
+        "title": "اكسب 3 مباريات",
+        "target": 3,
+        "progress": 0,
+        "reward": {
+          "coins": 800
+        }
+      },
+      {
+        "id": "daily_play5",
+        "title": "العب 5 مباريات أونلاين",
+        "target": 5,
+        "progress": 2,
+        "reward": {
+          "xp": 50
+        }
+      },
+      {
+        "id": "daily_score50",
+        "title": "سجّل 50 نقطة إجمالية",
+        "target": 50,
+        "progress": 8,
+        "reward": {
+          "chest": "wooden"
+        }
+      }
+    ],
+    "weeklyMissions": [
+      {
+        "id": "weekly_win5",
+        "title": "اكسب 5 مباريات",
+        "target": 5,
+        "progress": 0,
+        "reward": {
+          "coins": 3000
+        }
+      },
+      {
+        "id": "weekly_play10",
+        "title": "العب 10 مباريات أونلاين",
+        "target": 10,
+        "progress": 2,
+        "reward": {
+          "xp": 150
+        }
+      },
+      {
+        "id": "weekly_score200",
+        "title": "سجّل 200 نقطة إجمالية",
+        "target": 200,
+        "progress": 8,
+        "reward": {
+          "chest": "silver"
+        }
+      }
+    ]
+  },
+  {
+    "id": "super_admin_1772854406660",
+    "name": "Super Admin",
+    "email": "sldv.smsm1234@gmail.com",
+    "passHash": "c40c51c4fb9f04eb0614b854feeaa4b33bbc9fb4870e55668c59f6c5bde9312bbd320b69c6623c608db4f88ca3ca032b5f63c3eca75002baaefe93cd7fcceb86",
+    "salt": "1132557dffa623a4d60cade0f2f52839",
+    "createdAt": 1772854406660,
+    "ratings": {
+      "chess": 1200,
+      "domino": 1200
+    },
+    "tier": "elite",
+    "role": "super_admin",
+    "coins": 999999,
+    "gems": 999999,
+    "cosmetics": {
+      "pieceSet": "gold",
+      "boardTheme": "ocean"
+    },
+    "unlockedPieceSets": [
+      "lichess",
+      "staunton",
+      "gold",
+      "neon"
+    ],
+    "unlockedBoardThemes": [
+      "classic",
+      "wood",
+      "carbon",
+      "ocean"
+    ]
+  }
+]

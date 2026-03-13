@@ -1,157 +1,150 @@
-# يالا نلعب — YallaNe'lab 🎮
+# يالا نلعب — YallaNelab 🎮
 
-منصة ألعاب عربية أصيلة: دومينو · بلوت · شطرنج · لودو
+منصة ألعاب عربية متكاملة تجمع الدومينو، البلوت، الشطرنج، واللودو مع هوية ثقافية
+حقيقية لكل بلد عربي ونظام منافسة بين الدول.
 
 ---
 
-## 🚀 تشغيل المشروع
+## الألعاب المتاحة
 
-### المتطلبات
-- Node.js 20+
-- npm / yarn
+| اللعبة    | الوضع          | المسار                   |
+|-----------|----------------|--------------------------|
+| الدومينو  | Online + Campaign + Training | /games/domino  |
+| البلوت    | Online                       | /games/baloot  |
+| الشطرنج   | Online                       | /games/chess   |
+| اللودو    | Online                       | /games/ludo    |
 
-### خطوات التشغيل
+---
+
+## المتطلبات
+
+- Node.js 18+
+- npm أو yarn
+
+---
+
+## التشغيل
 
 ```bash
-# 1. نسخ متغيرات البيئة
-cp .env.example .env
-
-# 2. تثبيت الاعتماديات
+# تثبيت الاعتمادات
 npm install
 
-# 3. تشغيل السيرفر (dev)
+# تشغيل بيئة التطوير
 npm run dev
+
+# بناء الإنتاج
+npm run build
+npm start
 ```
 
-الموقع يشتغل على: `http://localhost:3000`
-الشبكة المحلية (موبايل): `http://<YOUR_IP>:3000`
+يفتح المشروع على: http://localhost:3000
 
 ---
 
-## 📁 هيكل المشروع
+## هيكل المشروع
 
 ```
 src/
-├── app/                    # Next.js 16 App Router
-│   ├── api/                # API Routes
-│   │   ├── auth/           # تسجيل دخول / تسجيل
-│   │   ├── domino/         # دومينو APIs
-│   │   ├── economy/        # المكافأة اليومية، المهام، الصناديق
-│   │   ├── leaderboard/    # لوحات المتصدرين
-│   │   └── user/           # بروفايل المستخدم
-│   └── games/              # صفحات الألعاب
-│       ├── domino/
-│       ├── chess/
-│       ├── baloot/
-│       └── ludo/
-├── components/
-│   ├── domino/             # مكونات الدومينو
-│   ├── chess/              # مكونات الشطرنج
-│   ├── baloot/             # مكونات البلوت
-│   ├── ludo/               # مكونات اللودو
-│   ├── platform/           # المنصة العامة
-│   └── profile/            # صفحة البروفايل
-├── lib/
-│   ├── auth/               # نظام المصادقة (JSON file-based)
-│   ├── domino/             # منطق لعبة الدومينو
-│   ├── chess/              # منطق لعبة الشطرنج
-│   └── platform/           # Store + Socket + Themes
-└── server/
-    └── socket.ts           # Socket.IO handlers
+  app/
+    games/domino/       ← صفحات الدومينو (online/campaign/training)
+    games/baloot/       ← صفحات البلوت
+    games/chess/        ← صفحات الشطرنج
+    games/ludo/         ← صفحات اللودو
+    profile/            ← صفحة البروفايل
+    leaderboards/       ← صفحة المتصدرين
+    api/                ← جميع API Routes
+  components/
+    domino/             ← مكونات الدومينو
+    baloot/             ← مكونات البلوت
+    chess/              ← مكونات الشطرنج
+    ludo/               ← مكونات اللودو
+    platform/           ← PlatformHub + Store + Chat
+    profile/            ← ProfileView
+  lib/
+    auth/               ← session.ts + store.ts (JSON DB)
+    domino/             ← game.ts + campaign.ts
+    platform/           ← cultural-themes.ts + store (Zustand)
+data/
+  users.json            ← قاعدة البيانات (JSON file store)
+public/
+  domino/tables/        ← صور طاولات الدومينو
+  skins/domino/         ← سكينات التايلات
 ```
 
 ---
 
-## 🎮 الألعاب
+## نظام الهويات الثقافية
 
-| اللعبة | الوضع | الحالة |
-|--------|-------|--------|
-| 🁫 دومينو | تدريب / حملة / رانكد / 4 لاعبين | ✅ مكتمل |
-| ♟️ شطرنج | ضد AI (Stockfish) / أونلاين | ✅ مكتمل |
-| 🃏 بلوت | أساسي | 🔄 جاري |
-| 🎲 لودو | أساسي | 🔄 جاري |
+المنصة تدعم 3 هويات ثقافية، كل مستخدم يختار بلده:
 
----
-
-## 🔐 نظام المصادقة
-
-المشروع يستخدم نظام مصادقة مخصص (بدون NextAuth):
-- بيانات المستخدمين: `data/users.json` (لا ترفعه على GitHub!)
-- Session: cookies + in-memory map
-- كلمات السر: PBKDF2 + salt
-
-**تسجيل:** `POST /api/auth/register`
-**تسجيل دخول:** `POST /api/auth/login`
-**بيانات المستخدم:** `GET /api/auth/me`
+- **السعودية** — الخليج الملكي: أخضر داكن + ذهبي ملكي + هندسة إسلامية
+- **مصر** — نيل الحضارة: نيلي + ذهبي فرعوني + زخارف نيلية
+- **اليمن** — قمر صنعاء: بني قمري + أخضر زبيبي + قناطر يمنية
 
 ---
 
-## 🌐 Socket.IO Events
+## قاعدة البيانات
 
-### دومينو
-| Event | اتجاه | الوصف |
-|-------|-------|-------|
-| `domino:join_queue` | client → server | الانضمام للطابور |
-| `domino:queued` | server → client | تأكيد الانضمام |
-| `domino:match_found` | server → client | وجدنا خصم |
-| `domino:join_match` | client → server | إعادة الاتصال |
-| `domino:state` | server → client | حالة اللعبة |
-| `domino:play` | client → server | لعب قطعة |
-| `domino:draw` | client → server | سحب من المستودع |
-| `domino:resign` | client → server | الاستسلام |
+المشروع يستخدم JSON file store بسيط في `data/users.json`.
 
----
-
-## 🗃️ البيانات
-
-البيانات تُحفظ في:
-- `data/users.json` — ملف JSON بسيط (local dev)
-- في الإنتاج: استبدله بـ PostgreSQL + Prisma
-
----
-
-## 🚀 الرفع على Production
-
-### Vercel (موصى به)
-```bash
-# تأكد من إضافة Environment Variables في Vercel
-vercel deploy
-```
-
-### Railway / Render
-```bash
-npm run build
-npm run start
-```
-
-### متغيرات البيئة المطلوبة
-```
-DATABASE_URL=      # إذا استخدمت Prisma
-NODE_ENV=production
-NEXTAUTH_SECRET=   # سكريت عشوائي
+### بنية المستخدم الأساسية:
+```json
+{
+  "id": "...",
+  "username": "...",
+  "email": "...",
+  "country": "eg",
+  "coins": 500,
+  "gems": 10,
+  "xp": 0,
+  "level": 1,
+  "ratings": { "domino": 1200, "chess": 1200 },
+  "domino": {
+    "matches": 0, "wins": 0, "losses": 0, "draws": 0,
+    "currentStreak": 0, "bestStreak": 0
+  }
+}
 ```
 
 ---
 
-## 🎨 Design System
+## المتغيرات البيئية
 
-```css
---bg-primary:   #07090f    /* خلفية داكنة */
---royal-gold:   #f5a623    /* ذهبي ملكي */
---neon-cyan:    #00d4ff    /* سيان نيون */
---domino-felt:  #0a1f14    /* لون الفيلت */
+أنشئ ملف `.env.local`:
+```env
+NEXTAUTH_SECRET=your-secret-here
+NEXTAUTH_URL=http://localhost:3000
 ```
 
-Classes جاهزة: `.gold-shimmer` `.glass` `.glass-dark` `.btn-gold` `.card-gold` `.glow-gold`
+---
+
+## APIs الرئيسية
+
+| Method | Route                   | الوصف                          |
+|--------|-------------------------|--------------------------------|
+| GET    | /api/auth/me            | بيانات المستخدم الحالي         |
+| POST   | /api/auth/login         | تسجيل الدخول                  |
+| POST   | /api/auth/register      | إنشاء حساب                    |
+| GET    | /api/profile/full       | بيانات المستخدم الكاملة        |
+| POST   | /api/domino/match       | تسجيل نتيجة مباراة دومينو     |
+| GET    | /api/leaderboard/domino | ترتيب الدومينو                 |
+| POST   | /api/economy/daily      | مكافأة الدخول اليومي           |
 
 ---
 
-## 🗺️ الخطة القادمة
+## الخطة القادمة
 
-راجع [ROADMAP.md](./ROADMAP.md) للتفاصيل الكاملة.
+راجع ملف `FRONTEND_PLAN.md` للخطة الكاملة لإعادة تصميم الفرونت.
 
 ---
 
-## 📄 الترخيص
+## التقنيات المستخدمة
 
-Private — All rights reserved © يالا نلعب 2026
+- **Framework:** Next.js 15 (App Router)
+- **Language:** TypeScript
+- **Styling:** Tailwind CSS v4 + CSS Variables
+- **Animation:** Framer Motion
+- **State:** Zustand
+- **Font:** Cairo (Google Fonts)
+- **Auth:** Custom session (cookie-based)
+- **DB:** JSON file store

@@ -273,19 +273,38 @@ export class DominoGame {
   draw(playerId: string): boolean {
     if (this.phase !== "playing") return false;
     if (this.boneyard.length === 0) return false;
-    
-    // In Block mode, drawing is not allowed (unless rules say otherwise, but usually Block means no draw)
     if (this.gameType === "block") return false;
-
-    // Check if player has valid moves. If so, don't allow drawing unless rules specify
-    // For now, let's allow it for freedom or if blocked.
-    // Ideally, restrict if valid moves exist.
-    
     const tile = this.boneyard.shift();
     if (tile) {
         this.hands[playerId].push(tile);
         return true;
     }
     return false;
+  }
+
+  // Draw tiles until the player has a valid move (or boneyard is empty)
+  drawToFit(playerId: string): boolean {
+    if (this.phase !== "playing") return false;
+    if (this.gameType === "block") return false;
+    let drew = false;
+    while (this.boneyard.length > 0 && this.getValidMoves(playerId).length === 0) {
+      const tile = this.boneyard.shift();
+      if (tile) { this.hands[playerId].push(tile); drew = true; }
+    }
+    return drew;
+  }
+
+  // Returns game end status
+  status(): { ended: boolean; winner?: string; reason?: string; scorePlayer?: number; scoreAi?: number } {
+    if (this.phase !== "ended") return { ended: false };
+    const scorePlayer = this.hands["player"]?.reduce((s, t) => s + t.a + t.b, 0) ?? 0;
+    const scoreAi = this.hands["ai"]?.reduce((s, t) => s + t.a + t.b, 0) ?? 0;
+    return {
+      ended: true,
+      winner: this.winner ?? undefined,
+      reason: this.winner ? "win" : "blocked",
+      scorePlayer,
+      scoreAi,
+    };
   }
 }

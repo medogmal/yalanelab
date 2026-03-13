@@ -19,6 +19,8 @@ export async function GET() {
       gems:     u.gems     || 0,
       role:     u.role     || "user",
       tier:     u.tier     || "free",
+      country:  (u as any).country || null,
+      country:  u.country  || null,
       ratings:  u.ratings,
       cosmetics: u.cosmetics,
       stats: {

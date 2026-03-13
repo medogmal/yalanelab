@@ -1,197 +1,180 @@
 "use client";
 import React, { useState } from "react";
 import { usePlatformStore, InventoryItem } from "@/lib/platform/store";
-import { TRANSLATIONS } from "@/lib/platform/translations";
-import { Coins, ShoppingBag, Check, Shield, Palette, User, Crown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { ShoppingBag, Check, Crown, User, Palette, Shield, Coins } from "lucide-react";
 
+const gold = "#f0a500";
+
+const CATEGORIES = [
+  { id:"all",        label:"الكل",    icon:<ShoppingBag size={14}/> },
+  { id:"avatar",     label:"أفاتار",  icon:<User size={14}/> },
+  { id:"domino_skin",label:"دومينو",  icon:<Palette size={14}/> },
+  { id:"chess_skin", label:"شطرنج",   icon:<Crown size={14}/> },
+  { id:"ludo_skin",  label:"لودو",    icon:<Palette size={14}/> },
+  { id:"baloot_skin",label:"بلوت",    icon:<Shield size={14}/> },
+];
+
+/* ─────────────────────────────────────────────────────────
+   ITEM CARD
+───────────────────────────────────────────────────────── */
+function ItemCard({ item, owned, equipped, onBuy, onEquip, price }: {
+  item:InventoryItem; owned:boolean; equipped:boolean;
+  onBuy:()=>void; onEquip:()=>void; price:number;
+}) {
+  return (
+    <motion.div
+      layout
+      initial={{opacity:0,scale:.92}}
+      animate={{opacity:1,scale:1}}
+      exit={{opacity:0,scale:.92}}
+      transition={{duration:.25}}
+      className="relative rounded-2xl overflow-hidden flex flex-col transition-all duration-300"
+      style={{
+        background: equipped ? `${gold}0a` : "rgba(255,255,255,.028)",
+        border:`1px solid ${equipped?gold+"40":"rgba(255,255,255,.08)"}`,
+        boxShadow: equipped ? `0 0 24px ${gold}15` : "none",
+      }}
+    >
+      {/* VIP badge */}
+      {item.vip_required&&(
+        <div className="absolute top-2 left-2 z-10 flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-black"
+          style={{background:`linear-gradient(135deg,${gold},#ea580c)`,color:"#000"}}>
+          <Crown size={8} fill="currentColor"/> VIP
+        </div>
+      )}
+
+      {/* Equipped check */}
+      {equipped&&(
+        <div className="absolute top-2 right-2 z-10 w-5 h-5 rounded-full flex items-center justify-center"
+          style={{background:gold,boxShadow:`0 2px 8px ${gold}60`}}>
+          <Check size={11} className="text-black" strokeWidth={3}/>
+        </div>
+      )}
+
+      {/* Preview */}
+      <div className="relative aspect-square flex items-center justify-center overflow-hidden"
+        style={{background:equipped?`${gold}08`:"rgba(255,255,255,.02)"}}>
+        {/* hover glow */}
+        <div className="absolute inset-0 opacity-0 hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+          style={{background:`radial-gradient(circle at 50% 50%, ${gold}18, transparent 70%)`}}/>
+        {item.type==="avatar"?(
+          <span className="text-5xl select-none transition-transform duration-500 hover:scale-125 drop-shadow-lg">{item.asset}</span>
+        ):(
+          item.asset?.startsWith("/") || item.asset?.startsWith("http")
+            ?<img src={item.asset} alt={item.name} className="w-3/4 h-3/4 object-contain transition-transform duration-500 hover:scale-110"/>
+            :<div className="text-center px-2">
+              <span className="text-3xl">🎨</span>
+              <div className="text-[9px] mt-1 px-2 py-0.5 rounded-full font-mono text-slate-500" style={{background:"rgba(0,0,0,.3)"}}>{item.asset}</div>
+            </div>
+        )}
+      </div>
+
+      {/* Info + action */}
+      <div className="p-3 flex flex-col gap-2 flex-1">
+        <div>
+          <div className="font-black text-sm text-white truncate">{item.name}</div>
+          <div className="text-[10px] text-slate-600 font-bold capitalize">{item.type.replace("_"," ")}</div>
+        </div>
+        {owned?(
+          <button onClick={onEquip} disabled={equipped}
+            className={`w-full py-2 rounded-xl font-black text-[11px] flex items-center justify-center gap-1 transition-all active:scale-95 ${equipped?"cursor-default opacity-60":"hover:brightness-110"}`}
+            style={{background:equipped?`${gold}18`:"rgba(255,255,255,.07)",color:equipped?gold:"rgba(255,255,255,.7)",border:`1px solid ${equipped?gold+"30":"rgba(255,255,255,.1)"}`}}>
+            {equipped?<><Check size={11}/> مفعّل</>:"استخدم"}
+          </button>
+        ):(
+          <button onClick={onBuy}
+            className="w-full py-2 rounded-xl font-black text-[11px] flex items-center justify-center gap-1.5 transition-all active:scale-95 hover:brightness-110"
+            style={{background:`linear-gradient(135deg,${gold},#ea580c)`,color:"#000",boxShadow:`0 4px 12px ${gold}35`}}>
+            <Coins size={11}/> {price.toLocaleString()}
+          </button>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────
+   UNIFIED STORE
+───────────────────────────────────────────────────────── */
 export default function UnifiedStore() {
-  const { user, inventory, equipped, buyItem, equipItem, language, catalog, fetchCatalog } = usePlatformStore();
-  const [activeCategory, setActiveCategory] = useState<InventoryItem["type"] | "all">("all");
-  const t = TRANSLATIONS[language];
+  const { user, inventory, equipped, buyItem, equipItem, catalog, fetchCatalog } = usePlatformStore();
+  const [category, setCategory] = useState<InventoryItem["type"]|"all">("all");
 
-  // Fetch dynamic catalog on mount
-  React.useEffect(() => {
-    fetchCatalog();
-  }, []);
+  React.useEffect(()=>{ fetchCatalog(); },[]);
 
-  // Filter items based on category
-  const filteredItems = activeCategory === "all" 
-    ? catalog 
-    : catalog.filter(item => item.type === activeCategory);
-
-  const isOwned = (id: string) => inventory.some((i) => i.id === id); // Check both for compatibility
-  const isEquipped = (type: InventoryItem["type"], id: string) => {
-    // Access equipped object safely
-    const eq = equipped as Record<string, string>;
-    return eq[type] === id || (type.includes("skin") && eq[type.replace("_skin", "") + "_skin"] === id);
+  const items = category==="all" ? catalog : catalog.filter(i=>i.type===category);
+  const isOwned = (id:string) => inventory.some(i=>i.id===id);
+  const isEquipped = (type:InventoryItem["type"], id:string) => {
+    const eq = equipped as Record<string,string>;
+    return eq[type]===id;
   };
 
-  const handleBuy = async (item: InventoryItem, price: number) => {
-    if (!user) return;
-    const success = await buyItem({ ...item, price });
-    if (!success) {
-      alert(language === 'ar' ? "لا يوجد رصيد كافٍ أو حدث خطأ!" : "Not enough coins or error occurred!");
-    }
-  };
-
-  const handleEquip = (item: InventoryItem) => {
-    equipItem(item.type, item.id);
-  };
-
-  const categories = [
-    { id: "all", label: language === 'ar' ? "الكل" : "All", icon: <ShoppingBag size={16} /> },
-    { id: "avatar", label: language === 'ar' ? "أفاتار" : "Avatars", icon: <User size={16} /> },
-    { id: "ludo_skin", label: language === 'ar' ? "لودو" : "Ludo", icon: <Palette size={16} /> },
-    { id: "chess_skin", label: language === 'ar' ? "شطرنج" : "Chess", icon: <Crown size={16} /> },
-    { id: "baloot_skin", label: language === 'ar' ? "بلوت" : "Baloot", icon: <Shield size={16} /> },
-  ];
+  async function handleBuy(item:InventoryItem) {
+    if(!user) return;
+    const ok = await buyItem({...item, price:item.price||500});
+    if(!ok) alert("لا يوجد رصيد كافٍ!");
+  }
 
   return (
-    <div className="bg-slate-900/50 backdrop-blur-xl text-white p-6 rounded-3xl h-full flex flex-col border border-slate-800 shadow-2xl">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h2 className="text-3xl font-black flex items-center gap-3 bg-gradient-to-r from-pink-500 to-purple-500 bg-clip-text text-transparent">
-            <ShoppingBag className="text-pink-500" size={32} /> {t.store}
-          </h2>
-          <p className="text-slate-400 text-sm mt-1">
-            {language === 'ar' ? "طور مظهرك وتميز عن الآخرين" : "Upgrade your style and stand out"}
-          </p>
-        </div>
-        
-        <div className="bg-slate-800/80 px-5 py-3 rounded-2xl flex items-center gap-3 border border-slate-700 shadow-inner">
-          <div className="bg-yellow-500/20 p-2 rounded-lg">
-            <Coins className="text-yellow-400 w-6 h-6" />
+    <div className="flex flex-col gap-5" dir="rtl">
+
+      {/* Balance bar */}
+      <div className="flex items-center justify-between p-3.5 rounded-2xl" style={{background:"rgba(255,255,255,.03)",border:"1px solid rgba(255,255,255,.07)"}}>
+        <div className="text-sm text-slate-500 font-bold">رصيدك</div>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 font-black text-sm" style={{color:gold}}>
+            <span>🪙</span><span>{(user?.coins||0).toLocaleString()}</span>
           </div>
-          <div className="flex flex-col items-end">
-            <span className="text-xs text-slate-400 font-bold uppercase">{t.coins}</span>
-            <span suppressHydrationWarning className="font-mono font-black text-xl text-yellow-400">{user?.coins.toLocaleString()}</span>
+          <div className="flex items-center gap-1.5 font-black text-sm text-purple-400">
+            <span>💎</span><span>{user?.gems||0}</span>
           </div>
         </div>
       </div>
 
       {/* Categories */}
-      <div className="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
-        {categories.map((cat) => (
-          <button
-            key={cat.id}
-            onClick={() => setActiveCategory(cat.id as InventoryItem["type"] | "all")}
-            className={`
-              flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-sm whitespace-nowrap transition-all duration-300
-              ${activeCategory === cat.id 
-                ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/25 scale-105" 
-                : "bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white"}
-            `}
-          >
-            {cat.icon}
-            {cat.label}
-          </button>
-        ))}
+      <div className="flex gap-2 overflow-x-auto pb-1" style={{scrollbarWidth:"none"}}>
+        {CATEGORIES.map(c=>{
+          const active=category===c.id;
+          return (
+            <button key={c.id} onClick={()=>setCategory(c.id as any)}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl font-black text-xs whitespace-nowrap flex-shrink-0 transition-all active:scale-95"
+              style={{
+                background:active?`${gold}18`:"rgba(255,255,255,.04)",
+                border:`1px solid ${active?gold+"40":"rgba(255,255,255,.08)"}`,
+                color:active?gold:"rgba(255,255,255,.4)",
+                boxShadow:active?`0 4px 16px ${gold}20`:"none",
+              }}>
+              {c.icon}{c.label}
+            </button>
+          );
+        })}
       </div>
 
-      {/* Items Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 overflow-y-auto pr-2 pb-4">
-        <AnimatePresence mode="popLayout">
-          {filteredItems.map((item) => {
-            const owned = isOwned(item.id);
-            const equippedItem = isEquipped(item.type, item.id);
-            const price = item.price || 500; // Use item price or default
-
-            return (
-              <motion.div
-                layout
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
+      {/* Items grid */}
+      {items.length===0?(
+        <div className="py-16 flex flex-col items-center gap-3 text-center">
+          <div className="text-4xl">🎁</div>
+          <div className="font-black text-sm text-white">لا توجد عناصر في هذه الفئة</div>
+          <div className="text-[11px] text-slate-600 font-bold">تحقق مرة أخرى قريباً</div>
+        </div>
+      ):(
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <AnimatePresence mode="popLayout">
+            {items.map(item=>(
+              <ItemCard
                 key={item.id}
-                className={`
-                  relative bg-slate-800 rounded-2xl p-4 border transition-all duration-300 group
-                  ${equippedItem ? "border-green-500 shadow-[0_0_20px_rgba(34,197,94,0.2)]" : "border-slate-700 hover:border-indigo-500 hover:shadow-xl hover:-translate-y-1"}
-                `}
-              >
-                {/* VIP Badge */}
-                {item.vip_required && (
-                    <div className="absolute top-2 left-2 z-20 bg-gradient-to-r from-amber-500 to-yellow-600 text-black text-[10px] font-black px-2 py-0.5 rounded-full shadow-lg flex items-center gap-1">
-                        <Crown size={10} fill="currentColor" /> VIP
-                    </div>
-                )}
-
-                {/* Item Preview */}
-                <div className={`
-                  w-full aspect-square rounded-xl mb-4 flex items-center justify-center text-5xl shadow-inner relative overflow-hidden
-                  ${equippedItem ? "bg-green-500/10" : "bg-slate-900"}
-                `}>
-                  {/* Background Glow */}
-                  <div className="absolute inset-0 bg-gradient-to-tr from-indigo-500/20 to-purple-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                  
-                  {item.type === "avatar" ? (
-                    <span className="drop-shadow-2xl scale-125 transition-transform group-hover:scale-150">{item.asset}</span>
-                  ) : (
-                    <div className="relative z-10 w-full h-full flex items-center justify-center">
-                        {/* Try to show image if asset is a path */}
-                        {item.asset.startsWith('/') || item.asset.startsWith('http') ? (
-                            <img src={item.asset} alt={item.name} className="max-w-[80%] max-h-[80%] object-contain drop-shadow-2xl transition-transform group-hover:scale-110" />
-                        ) : (
-                            <div className="text-center">
-                                <span className="text-4xl drop-shadow-lg">{item.type.includes('skin') ? '🎨' : '📦'}</span>
-                                <div className="text-[10px] mt-2 px-2 py-1 bg-black/50 rounded-full backdrop-blur font-mono text-slate-300">
-                                    {item.asset}
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                  )}
-
-                  {equippedItem && (
-                    <div className="absolute top-2 right-2 bg-green-500 text-white p-1 rounded-full shadow-lg">
-                      <Check size={12} strokeWidth={4} />
-                    </div>
-                  )}
-                </div>
-
-                {/* Info */}
-                <div className="mb-4">
-                  <h3 className="font-bold text-lg truncate">{item.name}</h3>
-                  <p className="text-xs text-slate-400 capitalize flex items-center gap-1">
-                    {item.type.replace("_", " ")}
-                  </p>
-                </div>
-
-                {/* Actions */}
-                <div className="mt-auto">
-                  {owned ? (
-                    <button
-                      onClick={() => handleEquip(item)}
-                      disabled={equippedItem}
-                      className={`
-                        w-full py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all
-                        ${equippedItem 
-                          ? "bg-green-500/20 text-green-400 cursor-default" 
-                          : "bg-slate-700 text-white hover:bg-green-600 hover:shadow-lg hover:shadow-green-500/20"}
-                      `}
-                    >
-                      {equippedItem ? (
-                        <>{language === 'ar' ? "مستخدم" : "EQUIPPED"}</>
-                      ) : (
-                        <>{language === 'ar' ? "استخدام" : "EQUIP"}</>
-                      )}
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => handleBuy(item, price)}
-                      className="w-full py-2.5 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-orange-500/20 transition-all active:scale-95"
-                    >
-                      <Coins size={14} className="fill-current" />
-                      {price}
-                    </button>
-                  )}
-                </div>
-              </motion.div>
-            );
-          })}
-        </AnimatePresence>
-      </div>
+                item={item}
+                owned={isOwned(item.id)}
+                equipped={isEquipped(item.type,item.id)}
+                price={item.price||500}
+                onBuy={()=>handleBuy(item)}
+                onEquip={()=>equipItem(item.type,item.id)}
+              />
+            ))}
+          </AnimatePresence>
+        </div>
+      )}
     </div>
   );
 }
