@@ -1,13 +1,11 @@
 "use client";
 import React from "react";
-import { usePathname } from "next/navigation";
 import { SessionProvider } from "next-auth/react";
 import SessionSync from "@/components/SessionSync";
 import PWAInstallBanner from "@/components/PWAInstallBanner";
+import AnnouncementBar from "@/components/AnnouncementBar";
 import type { PlatformConfig } from "@/lib/platform-config";
 
-// كل الصفحات standalone — مفيش NavBar قديم خالص
-// كل صفحة بتعمل navigation خاصه بيها
 export default function AppShell({
   children,
   announcementText,
@@ -20,6 +18,8 @@ export default function AppShell({
   return (
     <SessionProvider>
       <SessionSync />
+      {/* Announcement ticker — shows when text is set by admin */}
+      {announcementText && <AnnouncementBar text={announcementText} />}
       <PWAInstallBanner />
       <div className="min-h-dvh">{children}</div>
     </SessionProvider>
