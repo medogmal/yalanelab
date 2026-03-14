@@ -1,184 +1,492 @@
 "use client";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { usePlatformStore } from "@/lib/platform/store";
-import { TRANSLATIONS } from "@/lib/platform/translations";
-import { Send, MessageSquare, Hash, Users, MoreVertical, Smile } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
+/* ══════════════════════════════════════════════════════════════
+   TYPES
+══════════════════════════════════════════════════════════════ */
 type Message = {
-  id: string;
-  sender: string;
-  avatar: string;
-  text: string;
-  timestamp: number;
-  channel: string;
+  id:        string;
+  user:      string;
+  text:      string;
+  at:        number;
+  room:      string;
+  avatar?:   string;
+  isSystem?: boolean;
 };
 
 const CHANNELS = [
-  { id: "general", name: "General", arName: "عام" },
-  { id: "baloot", name: "Baloot", arName: "بلوت" },
-  { id: "ludo", name: "Ludo", arName: "لودو" },
-  { id: "strategy", name: "Strategy", arName: "استراتيجيات" },
+  { id: "global",   label: "🌍 عام"       },
+  { id: "domino",   label: "🁣 دومينو"    },
+  { id: "baloot",   label: "🃏 بلوت"      },
+  { id: "chess",    label: "♟ شطرنج"     },
+  { id: "ludo",     label: "🎲 لودو"      },
 ];
 
+const EMOJI_SHORTCUTS = ["😂","🔥","👑","💯","🎮","🏆","😎","❤️","👍","🥇"];
+
+const SYSTEM_MSGS: Record<string, string[]> = {
+  global:  ["مرحباً في المجتمع! 🎮", "أهلاً وسهلاً بالجميع"],
+  domino:  ["من يريد مباراة دومينو؟ 🁣", "انضم لطاولة الدومينو الآن!"],
+  baloot:  ["البلوت السعودي يبدأ! 🃏", "نحتاج لاعبَيْن للبلوت"],
+  chess:   ["تحدي الشطرنج! ♟", "من يجرؤ على مواجهتي؟"],
+  ludo:    ["لودو مع العيلة! 🎲", "أهلاً في طاولة اللودو"],
+};
+
+/* ══════════════════════════════════════════════════════════════
+   MOCK AVATARS (لو مفيش avatar حقيقي)
+══════════════════════════════════════════════════════════════ */
+const AVATARS = ["🦁","🤖","👸","🦅","🐯","🦊","🐉","⚡","🌙","🔥"];
+function getAvatar(name: string): string {
+  const code = name.split("").reduce((s, c) => s + c.charCodeAt(0), 0);
+  return AVATARS[code % AVATARS.length];
+}
+
+/* ══════════════════════════════════════════════════════════════
+   COMMUNITY CHAT COMPONENT
+══════════════════════════════════════════════════════════════ */
 export default function CommunityChat() {
-  const { user, language } = usePlatformStore();
-  const t = TRANSLATIONS[language];
-  
-  const [activeChannel, setActiveChannel] = useState("general");
-  const [messages, setMessages] = useState<Message[]>([]);
+  const { user } = usePlatformStore();
+
+  const [channel,    setChannel]    = useState("global");
+  const [messages,   setMessages]   = useState<Message[]>([]);
+  const [input,      setInput]      = useState("");
+  const [sending,    setSending]    = useState(false);
+  const [showEmoji,  setShowEmoji]  = useState(false);
+  const [onlineCount,setOnlineCount]= useState(1247);
+  const [typingUsers,setTypingUsers]= useState<string[]>([]);
+
+  const scrollRef  = useRef<HTMLDivElement>(null);
+  const inputRef   = useRef<HTMLInputElement>(null);
+  const pollRef    = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  /* ── Load messages ── */
+  const loadMessages = useCallback(async () => {
+    try {
+      const res  = await fetch(`/api/chat?room=${channel}`);
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        // أضف system message لو الـ channel فاضي
+        if (data.length === 0) {
+          const systemMsgs = SYSTEM_MSGS[channel] ?? [];
+          const systemList: Message[] = systemMsgs.map((text, i) => ({
+            id:        `sys-${i}`,
+            user:      "النظام",
+            text,
+            at:        Date.now() - (systemMsgs.length - i) * 60_000,
+            room:      channel,
+            isSystem:  true,
+          }));
+          setMessages(systemList);
+        } else {
+          setMessages(data);
+        }
+      }
+    } catch {/* ignore */}
+  }, [channel]);
 
   useEffect(() => {
-    // eslint-disable-next-line
-    setMessages([
-      { id: "1", sender: "System", avatar: "🤖", text: "Welcome to Yalla Nelab Community!", timestamp: Date.now(), channel: "general" },
-      { id: "2", sender: "Ahmed", avatar: "🦁", text: "Who wants to play Baloot?", timestamp: Date.now() - 10000, channel: "baloot" },
-      { id: "3", sender: "Sarah", avatar: "👸", text: "I'm in!", timestamp: Date.now() - 5000, channel: "baloot" }
-    ]);
+    setMessages([]);
+    loadMessages();
+
+    // Poll كل 4 ثانية
+    if (pollRef.current) clearInterval(pollRef.current);
+    pollRef.current = setInterval(loadMessages, 4_000);
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, [channel, loadMessages]);
+
+  /* ── Auto scroll ── */
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [messages]);
+
+  /* ── Fake online count ── */
+  useEffect(() => {
+    const t = setInterval(() => {
+      setOnlineCount(c => c + Math.floor((Math.random() - 0.5) * 10));
+    }, 8_000);
+    return () => clearInterval(t);
   }, []);
-  const [input, setInput] = useState("");
-  const scrollRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages, activeChannel]);
-
-  const handleSend = (e?: React.FormEvent) => {
+  /* ── Send message ── */
+  async function handleSend(e?: React.FormEvent) {
     e?.preventDefault();
-    if (!input.trim() || !user) return;
-    
-    const msg: Message = {
-      id: Date.now().toString(),
-      sender: user.name,
-      avatar: user.avatar,
-      text: input,
-      timestamp: Date.now(),
-      channel: activeChannel
-    };
-    
-    setMessages(prev => [...prev, msg]);
-    setInput("");
-  };
+    const text = input.trim();
+    if (!text || sending) return;
 
-  const filteredMessages = messages.filter(m => m.channel === activeChannel);
+    const senderName = user?.name ?? "ضيف";
+
+    // Optimistic UI
+    const optimistic: Message = {
+      id:   `opt-${Date.now()}`,
+      user: senderName,
+      text,
+      at:   Date.now(),
+      room: channel,
+    };
+    setMessages(prev => [...prev, optimistic]);
+    setInput("");
+    setShowEmoji(false);
+    setSending(true);
+
+    try {
+      await fetch(`/api/chat?room=${channel}`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ user: senderName, text }),
+      });
+      await loadMessages();
+    } catch {/* keep optimistic */}
+    finally { setSending(false); }
+  }
+
+  function addEmoji(emoji: string) {
+    setInput(prev => prev + emoji);
+    inputRef.current?.focus();
+  }
+
+  const filteredMsgs = messages.filter(m => !m.room || m.room === channel || m.isSystem);
+  const isLoggedIn   = !!user && user.id !== "guest_001";
 
   return (
-    <div className="bg-slate-900/50 backdrop-blur-xl text-white rounded-3xl h-full flex overflow-hidden border border-slate-800 shadow-2xl">
-      
-      {/* Channels Sidebar */}
-      <div className="w-64 bg-slate-900/80 border-r border-slate-800 flex flex-col p-4">
-        <div className="flex items-center gap-2 mb-6 px-2">
-          <MessageSquare className="text-indigo-500" />
-          <h2 className="font-black text-lg">{t.chat}</h2>
-        </div>
-        
-        <div className="space-y-1">
-          {CHANNELS.map(channel => (
-              <button 
-                key={channel.id}
-                onClick={() => setActiveChannel(channel.id)}
-                className={`
-                  w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all
-                  ${activeChannel === channel.id 
-                    ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20" 
-                    : "text-slate-400 hover:bg-slate-800 hover:text-white"}
-                `}
-              >
-                <Hash size={18} className="opacity-50" />
-                {language === 'ar' ? channel.arName : channel.name}
-                {activeChannel === channel.id && (
-                  <span className="w-2 h-2 rounded-full bg-white ml-auto" />
-                )}
-              </button>
-            ))}
+    <div style={{
+      display: "flex", flexDirection: "column",
+      height: "100%", overflow: "hidden",
+      background: "rgba(5,8,24,0.85)",
+      backdropFilter: "blur(20px)",
+      WebkitBackdropFilter: "blur(20px)",
+      border: "1px solid rgba(0,212,255,0.12)",
+      borderRadius: 20,
+      fontFamily: "var(--font-cairo), sans-serif",
+    }}>
+
+      {/* ── HEADER ── */}
+      <div style={{
+        flexShrink: 0,
+        padding: "12px 14px 10px",
+        borderBottom: "1px solid rgba(0,212,255,0.08)",
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        background: "rgba(2,3,16,0.5)",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{
+            width: 32, height: 32, borderRadius: 10,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 16,
+            background: "rgba(0,212,255,0.1)",
+            border: "1px solid rgba(0,212,255,0.2)",
+          }}>💬</div>
+          <div>
+            <div style={{ fontWeight: 900, fontSize: 13, color: "#fff" }}>
+              {CHANNELS.find(c => c.id === channel)?.label ?? "عام"}
+            </div>
+            <div style={{ fontSize: 9, fontWeight: 700, color: "rgba(0,212,255,0.4)", marginTop: 1 }}>
+              مجتمع يالا نلعب
+            </div>
+          </div>
         </div>
 
-        <div className="mt-auto pt-4 border-t border-slate-800">
-          <div className="flex items-center gap-2 text-xs text-slate-500 px-2">
-            <Users size={14} />
-            <span>1,234 {language === 'ar' ? "متصل" : "Online"}</span>
-          </div>
+        {/* Online count */}
+        <div style={{
+          display: "flex", alignItems: "center", gap: 5,
+          padding: "3px 8px", borderRadius: 99,
+          background: "rgba(34,197,94,0.08)",
+          border: "1px solid rgba(34,197,94,0.18)",
+          fontSize: 10, fontWeight: 800, color: "#22c55e",
+        }}>
+          <span style={{
+            width: 6, height: 6, borderRadius: "50%",
+            background: "#22c55e", boxShadow: "0 0 5px #22c55e",
+            animation: "pulse-dot 1.5s ease-in-out infinite",
+          }}/>
+          {onlineCount.toLocaleString()}
         </div>
       </div>
 
-      {/* Chat Area */}
-      <div className="flex-1 flex flex-col bg-slate-900/30">
-        {/* Header */}
-        <div className="h-16 border-b border-slate-800 flex items-center justify-between px-6 bg-slate-900/50">
-          <div className="flex items-center gap-2">
-            <Hash className="text-slate-400" size={20} />
-            <span className="font-bold">
-              {language === 'ar' 
-                ? CHANNELS.find(c => c.id === activeChannel)?.arName 
-                : CHANNELS.find(c => c.id === activeChannel)?.name}
-            </span>
-          </div>
-          <button className="text-slate-400 hover:text-white">
-            <MoreVertical size={20} />
-          </button>
-        </div>
+      {/* ── CHANNEL TABS ── */}
+      <div style={{
+        flexShrink: 0,
+        display: "flex", overflowX: "auto", gap: 6,
+        padding: "8px 10px 6px",
+        borderBottom: "1px solid rgba(255,255,255,0.05)",
+        scrollbarWidth: "none",
+      }}>
+        {CHANNELS.map(ch => {
+          const isActive = ch.id === channel;
+          return (
+            <motion.button
+              key={ch.id}
+              onClick={() => setChannel(ch.id)}
+              whileTap={{ scale: 0.92 }}
+              style={{
+                flexShrink: 0,
+                padding: "4px 10px", borderRadius: 8,
+                fontSize: 10, fontWeight: 900,
+                cursor: "pointer",
+                background: isActive ? "rgba(0,212,255,0.12)" : "rgba(255,255,255,0.03)",
+                border: `1px solid ${isActive ? "rgba(0,212,255,0.3)" : "rgba(255,255,255,0.06)"}`,
+                color: isActive ? "#00d4ff" : "rgba(255,255,255,0.35)",
+                transition: "all .2s",
+                whiteSpace: "nowrap",
+                fontFamily: "inherit",
+              }}
+            >
+              {ch.label}
+            </motion.button>
+          );
+        })}
+      </div>
 
-        {/* Messages */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
-          <AnimatePresence initial={false}>
-            {filteredMessages.map((msg) => {
-              const isMe = msg.sender === user?.name;
+      {/* ── MESSAGES ── */}
+      <div
+        ref={scrollRef}
+        style={{
+          flex: 1, overflowY: "auto", overflowX: "hidden",
+          padding: "10px 12px",
+          scrollbarWidth: "thin",
+          scrollbarColor: "rgba(0,212,255,0.2) transparent",
+        }}
+      >
+        <AnimatePresence initial={false}>
+          {filteredMsgs.length === 0 ? (
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+              style={{ textAlign: "center", padding: "32px 16px",
+                fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.2)" }}
+            >
+              لا توجد رسائل بعد — كن أول من يتحدث! 💬
+            </motion.div>
+          ) : (
+            filteredMsgs.map((msg, i) => {
+              const isMe     = msg.user === (user?.name ?? "");
+              const isSystem = msg.isSystem;
+              const avatar   = msg.avatar ?? getAvatar(msg.user);
+
+              if (isSystem) {
+                return (
+                  <motion.div
+                    key={msg.id}
+                    initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                    style={{
+                      textAlign: "center", margin: "8px 0",
+                      fontSize: 10, fontWeight: 700,
+                      color: "rgba(0,212,255,0.45)",
+                      padding: "4px 12px", borderRadius: 99,
+                      background: "rgba(0,212,255,0.04)",
+                      border: "1px solid rgba(0,212,255,0.08)",
+                      display: "inline-block", width: "auto",
+                      marginLeft: "auto", marginRight: "auto",
+                    }}
+                  >
+                    {msg.text}
+                  </motion.div>
+                );
+              }
+
               return (
-                <motion.div 
-                  initial={{ opacity: 0, y: 10 }}
+                <motion.div
+                  key={msg.id}
+                  initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  key={msg.id} 
-                  className={`flex gap-3 ${isMe ? "flex-row-reverse" : ""}`}
+                  transition={{ duration: 0.2, delay: i < 5 ? i * 0.03 : 0 }}
+                  style={{
+                    display: "flex",
+                    flexDirection: isMe ? "row-reverse" : "row",
+                    alignItems: "flex-end",
+                    gap: 8,
+                    marginBottom: 10,
+                  }}
                 >
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-lg border-2 border-slate-800 flex-shrink-0 shadow-lg">
-                    {msg.avatar}
-                  </div>
-                  <div className={`flex flex-col ${isMe ? "items-end" : "items-start"} max-w-[70%]`}>
+                  {/* Avatar */}
+                  {!isMe && (
+                    <div style={{
+                      width: 30, height: 30, borderRadius: 10, flexShrink: 0,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 16,
+                      background: "rgba(255,255,255,0.06)",
+                      border: "1px solid rgba(255,255,255,0.08)",
+                    }}>
+                      {avatar}
+                    </div>
+                  )}
+
+                  <div style={{
+                    display: "flex", flexDirection: "column",
+                    alignItems: isMe ? "flex-end" : "flex-start",
+                    maxWidth: "75%",
+                  }}>
+                    {/* Sender name */}
                     {!isMe && (
-                      <span className="text-xs text-slate-400 mb-1 ml-1 font-bold">{msg.sender}</span>
+                      <span style={{
+                        fontSize: 10, fontWeight: 800,
+                        color: "rgba(0,212,255,0.6)",
+                        marginBottom: 3,
+                      }}>{msg.user}</span>
                     )}
-                    <div className={`
-                      p-3 rounded-2xl text-sm leading-relaxed shadow-md
-                      ${isMe 
-                        ? "bg-indigo-600 text-white rounded-tr-none" 
-                        : "bg-slate-800 text-slate-200 rounded-tl-none border border-slate-700"}
-                    `}>
+
+                    {/* Bubble */}
+                    <div style={{
+                      padding: "8px 12px",
+                      borderRadius: isMe ? "14px 14px 4px 14px" : "14px 14px 14px 4px",
+                      fontSize: 13, fontWeight: 600, lineHeight: 1.5,
+                      background: isMe
+                        ? "linear-gradient(135deg,rgba(0,212,255,0.25),rgba(0,212,255,0.15))"
+                        : "rgba(255,255,255,0.06)",
+                      border: `1px solid ${isMe ? "rgba(0,212,255,0.25)" : "rgba(255,255,255,0.07)"}`,
+                      color: "#fff",
+                      wordBreak: "break-word",
+                    }}>
                       {msg.text}
                     </div>
-                    <span className="text-[10px] text-slate-600 mt-1 px-1">
-                      {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+
+                    {/* Time */}
+                    <span style={{
+                      fontSize: 9, color: "rgba(255,255,255,0.22)",
+                      marginTop: 3, fontWeight: 600,
+                    }}>
+                      {new Date(msg.at).toLocaleTimeString("ar", { hour: "2-digit", minute: "2-digit" })}
                     </span>
                   </div>
                 </motion.div>
               );
-            })}
-          </AnimatePresence>
-        </div>
+            })
+          )}
+        </AnimatePresence>
 
-        {/* Input */}
-        <div className="p-4 bg-slate-900/50 border-t border-slate-800">
-          <form onSubmit={handleSend} className="flex gap-2 items-center bg-slate-800 p-2 rounded-xl border border-slate-700 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500 transition-all shadow-inner">
-            <button type="button" className="p-2 text-slate-400 hover:text-yellow-400 transition-colors">
-              <Smile size={20} />
-            </button>
-            <input 
+        {/* Typing indicator */}
+        {typingUsers.length > 0 && (
+          <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 0" }}>
+            {[0,1,2].map(i => (
+              <motion.div key={i}
+                animate={{ y: [0, -4, 0] }}
+                transition={{ duration: 0.6, delay: i * 0.15, repeat: Infinity }}
+                style={{ width: 6, height: 6, borderRadius: "50%", background: "rgba(0,212,255,0.5)" }}
+              />
+            ))}
+            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontWeight: 700 }}>
+              يكتب...
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* ── INPUT ── */}
+      <div style={{
+        flexShrink: 0,
+        padding: "8px 10px",
+        borderTop: "1px solid rgba(255,255,255,0.05)",
+        background: "rgba(2,3,16,0.6)",
+        position: "relative",
+      }}>
+        {/* Emoji picker */}
+        <AnimatePresence>
+          {showEmoji && (
+            <motion.div
+              initial={{ opacity: 0, y: 8, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.95 }}
+              style={{
+                position: "absolute", bottom: "100%", right: 10, left: 10,
+                marginBottom: 6,
+                padding: "10px",
+                borderRadius: 14,
+                background: "rgba(5,8,24,0.98)",
+                border: "1px solid rgba(0,212,255,0.15)",
+                backdropFilter: "blur(20px)",
+                display: "flex", flexWrap: "wrap", gap: 6,
+                zIndex: 50,
+              }}
+            >
+              {EMOJI_SHORTCUTS.map(e => (
+                <button key={e} onClick={() => addEmoji(e)} style={{
+                  fontSize: 22, cursor: "pointer", background: "none",
+                  border: "none", padding: "2px 4px", borderRadius: 8,
+                  transition: "transform .15s",
+                }}>
+                  {e}
+                </button>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {!isLoggedIn ? (
+          <div style={{
+            textAlign: "center", padding: "10px 16px",
+            fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.35)",
+          }}>
+            <a href="/auth/login" style={{ color: "#00d4ff", textDecoration: "none", fontWeight: 900 }}>
+              سجّل دخولك
+            </a>{" "}
+            للمشاركة في الدردشة
+          </div>
+        ) : (
+          <form onSubmit={handleSend} style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            {/* Emoji button */}
+            <button
+              type="button"
+              onClick={() => setShowEmoji(v => !v)}
+              style={{
+                width: 34, height: 34, borderRadius: 10, flexShrink: 0,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 18, cursor: "pointer",
+                background: showEmoji ? "rgba(0,212,255,0.12)" : "rgba(255,255,255,0.05)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                color: "rgba(255,255,255,0.5)", fontFamily: "inherit",
+              }}
+            >😊</button>
+
+            {/* Text input */}
+            <input
+              ref={inputRef}
               value={input}
               onChange={e => setInput(e.target.value)}
-              placeholder={language === 'ar' ? `اكتب رسالة في #${CHANNELS.find(c => c.id === activeChannel)?.arName}...` : `Message #${activeChannel}...`}
-              className="flex-1 bg-transparent px-2 text-sm focus:outline-none text-white placeholder-slate-500"
+              placeholder={`اكتب في ${CHANNELS.find(c => c.id === channel)?.label ?? "عام"}...`}
+              maxLength={200}
+              style={{
+                flex: 1, padding: "8px 12px", borderRadius: 10,
+                background: "rgba(255,255,255,0.05)",
+                border: "1px solid rgba(0,212,255,0.14)",
+                color: "#fff", fontSize: 13, fontWeight: 600,
+                fontFamily: "inherit", outline: "none",
+                transition: "border-color .2s",
+              }}
+              onFocus={e => (e.target as HTMLInputElement).style.borderColor = "rgba(0,212,255,0.4)"}
+              onBlur={e  => (e.target as HTMLInputElement).style.borderColor = "rgba(0,212,255,0.14)"}
             />
-            <button 
-              type="submit" 
-              disabled={!input.trim()}
-              className="p-2 bg-indigo-600 rounded-lg hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-white shadow-lg"
+
+            {/* Send button */}
+            <motion.button
+              type="submit"
+              disabled={!input.trim() || sending}
+              whileTap={{ scale: 0.9 }}
+              style={{
+                width: 34, height: 34, borderRadius: 10, flexShrink: 0,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 16, cursor: input.trim() ? "pointer" : "not-allowed",
+                background: input.trim()
+                  ? "linear-gradient(135deg,#00d4ff,#0099cc)"
+                  : "rgba(255,255,255,0.05)",
+                border: "none",
+                color: input.trim() ? "#000" : "rgba(255,255,255,0.2)",
+                transition: "all .2s", fontFamily: "inherit",
+                opacity: sending ? 0.6 : 1,
+              }}
             >
-              <Send size={18} />
-            </button>
+              {sending ? "⏳" : "↑"}
+            </motion.button>
           </form>
-        </div>
+        )}
       </div>
+
+      <style>{`
+        @keyframes pulse-dot {
+          0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,.6);}
+          50%    {box-shadow:0 0 0 5px rgba(34,197,94,0);}
+        }
+      `}</style>
     </div>
   );
 }

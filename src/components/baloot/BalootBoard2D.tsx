@@ -859,7 +859,7 @@ export default function BalootBoard2D() {
              <motion.div 
                 animate={{ rotate: tableRotation }}
                 transition={{ ease: "linear", duration: 0.1 }}
-                className="relative w-full max-w-6xl aspect-square md:aspect-[16/9] flex items-center justify-center scale-[0.65] sm:scale-[0.8] md:scale-100 origin-center"
+                className="relative w-full max-w-7xl aspect-square md:aspect-[16/9] flex items-center justify-center scale-[0.85] sm:scale-[0.92] md:scale-100 origin-center"
              >
                 {/* 3D Table Surface */}
                 <div className={`
@@ -1124,7 +1124,7 @@ export default function BalootBoard2D() {
                                      }}
                                      onClick={() => can && play(card)}
                                  >
-                                     <div className="w-[60px] h-[90px] md:w-[100px] md:h-[150px]">
+                                     <div className="w-[70px] h-[105px] md:w-[110px] md:h-[165px]">
                                          <ProfessionalCard 
                                             suit={card.suit} 
                                             rank={card.rank} 

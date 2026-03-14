@@ -349,6 +349,9 @@ export default function ChessBoard2D({ externalFen, onRemoteMove, premium = fals
     return null;
   }
 
+  const FILES = orientation === "w" ? ["a","b","c","d","e","f","g","h"] : ["h","g","f","e","d","c","b","a"];
+  const RANKS = orientation === "w" ? ["8","7","6","5","4","3","2","1"] : ["1","2","3","4","5","6","7","8"];
+
   return (
     <div className="relative flex flex-col gap-4">
       {!compactUI && (
@@ -664,6 +667,22 @@ export default function ChessBoard2D({ externalFen, onRemoteMove, premium = fals
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <div className="md:col-span-4 flex justify-center">
           <div className="relative inline-block">
+            {/* Rank labels */}
+            <div className="absolute -right-6 top-0" style={{width:22,height:size}}>
+              {RANKS.map((r,i) => (
+                <div key={r} style={{position:"absolute",top:i*sq,height:sq,width:22,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                  <span style={{fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.35)",fontFamily:"monospace"}}>{r}</span>
+                </div>
+              ))}
+            </div>
+            {/* File labels */}
+            <div className="absolute -bottom-6 left-0" style={{width:size,height:20}}>
+              {FILES.map((f,i) => (
+                <div key={f} style={{position:"absolute",left:i*sq,width:sq,height:20,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                  <span style={{fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.35)",fontFamily:"monospace"}}>{f}</span>
+                </div>
+              ))}
+            </div>
           <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
             <rect x={0} y={0} width={size} height={size} fill="#0b0c10" />
             {Array.from({ length: 8 }).map((_, y) =>

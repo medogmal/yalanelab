@@ -550,6 +550,44 @@ export function addScoreProgress(userId: string, score: number) {
   saveUsers(users);
   return true;
 }
+// Sync a Prisma/NextAuth user into the JSON store (creates if missing)
+export function syncUserFromPrisma(prismaUser: { id: string; name?: string | null; email?: string | null }): User | null {
+  if (!prismaUser.email) return null;
+  const existing = getUserByEmail(prismaUser.email);
+  if (existing) return existing;
+  return createUser(prismaUser.id, prismaUser.name || "لاعب", prismaUser.email, "");
+}
+
+export function applyLudoEloResult(winnerId: string | undefined, loserId: string | undefined) {
+  if (!winnerId && !loserId) return;
+  const K = 28;
+  const users = loadUsers();
+  const wUser = winnerId ? users.find((u) => u.id === winnerId) : undefined;
+  const lUser = loserId  ? users.find((u) => u.id === loserId)  : undefined;
+  if (wUser && lUser) {
+    const Ew = 1 / (1 + Math.pow(10, (lUser.ratings.ludo - wUser.ratings.ludo) / 400));
+    const El = 1 / (1 + Math.pow(10, (wUser.ratings.ludo - lUser.ratings.ludo) / 400));
+    wUser.ratings.ludo = Math.round(wUser.ratings.ludo + K * (1 - Ew));
+    lUser.ratings.ludo = Math.round(lUser.ratings.ludo + K * (0 - El));
+    saveUsers(users);
+  }
+}
+
+export function applyBalootEloResult(winnerId: string | undefined, loserId: string | undefined) {
+  if (!winnerId && !loserId) return;
+  const K = 28;
+  const users = loadUsers();
+  const wUser = winnerId ? users.find((u) => u.id === winnerId) : undefined;
+  const lUser = loserId  ? users.find((u) => u.id === loserId)  : undefined;
+  if (wUser && lUser) {
+    const Ew = 1 / (1 + Math.pow(10, (lUser.ratings.baloot - wUser.ratings.baloot) / 400));
+    const El = 1 / (1 + Math.pow(10, (wUser.ratings.baloot - lUser.ratings.baloot) / 400));
+    wUser.ratings.baloot = Math.round(wUser.ratings.baloot + K * (1 - Ew));
+    lUser.ratings.baloot = Math.round(lUser.ratings.baloot + K * (0 - El));
+    saveUsers(users);
+  }
+}
+
 export function setCosmetics(userId: string, c: Partial<Cosmetics>) {
   const users = loadUsers();
   const u = users.find((x) => x.id === userId);

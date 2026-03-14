@@ -48,8 +48,11 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  // Support both query param and body
+  const url = new URL(req.url);
+  const qid = url.searchParams.get("playerId") || url.searchParams.get("id");
   const body = await req.json().catch(() => ({}));
-  const id = String(body?.id || "");
+  const id = String(qid || body?.id || body?.playerId || "");
   if (id) leaveLobby(id);
   return Response.json({ ok: true });
 }

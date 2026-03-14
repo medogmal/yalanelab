@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePlatformStore } from "@/lib/platform/store";
+import CommunityChat from "@/components/platform/CommunityChat";
 
 /* ─── GAME DATA ─────────────────────────────────────────────── */
 const GAMES = [
@@ -44,7 +45,7 @@ const GAMES = [
   },
 ] as const;
 
-type Tab = "home" | "war" | "store" | "profile";
+type Tab = "home" | "war" | "chat" | "store" | "profile";
 
 /* ══════════════════════════════════════════════════════════════
    SHOOTING STARS CANVAS
@@ -698,6 +699,7 @@ function ProfileScreen() {
 const TABS_NAV = [
   { id:"home"    as Tab, label:"الرئيسية", icon:"⊞" },
   { id:"war"     as Tab, label:"معركة",    icon:"⚔" },
+  { id:"chat"    as Tab, label:"دردشة",    icon:"💬" },
   { id:"store"   as Tab, label:"متجر",     icon:"◇" },
   { id:"profile" as Tab, label:"حسابي",    icon:"◉" },
 ];
@@ -743,6 +745,12 @@ export default function PlatformHub() {
       <AnimatePresence mode="wait">
         {tab==="home"    && <motion.div key="home"    initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} transition={{duration:.18}}><HomeScreen user={user}/></motion.div>}
         {tab==="war"     && <motion.div key="war"     initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} transition={{duration:.18}}><WarScreen/></motion.div>}
+        {tab==="chat"    && (
+          <motion.div key="chat" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} transition={{duration:.18}}
+            style={{ position:"fixed", inset:0, top:54, bottom:"calc(58px + env(safe-area-inset-bottom))", zIndex:10 }}>
+            <CommunityChat />
+          </motion.div>
+        )}
         {tab==="store"   && <motion.div key="store"   initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} transition={{duration:.18}}><StoreScreen/></motion.div>}
         {tab==="profile" && <motion.div key="profile" initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} transition={{duration:.18}}><ProfileScreen/></motion.div>}
       </AnimatePresence>

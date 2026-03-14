@@ -2,6 +2,8 @@
 import { NextResponse } from "next/server";
 import { readFileSync, writeFileSync, existsSync } from "fs";
 import path from "path";
+import { sendTournamentEmail } from "@/lib/email";
+import { loadUsers } from "@/lib/auth/store";
 
 const DATA_DIR = path.join(process.cwd(), "data");
 const TOURNAMENTS_FILE = path.join(DATA_DIR, "tournaments.json");
@@ -77,6 +79,23 @@ export async function POST(req: Request) {
 
     tournaments.push(newTournament);
     saveTournaments(tournaments);
+
+    // إرسال إيميل لكل المستخدمين المسجلين (non-blocking)
+    const origin = process.env.NEXTAUTH_URL || "https://yalanelab.com";
+    try {
+      const users = loadUsers();
+      users.forEach(u => {
+        if (u.email) {
+          sendTournamentEmail(u.email, u.name, {
+            title: newTournament.title,
+            startDate: newTournament.startDate,
+            prizePool: newTournament.prizePool,
+            game: newTournament.gameType,
+            url: `${origin}/tournaments`,
+          }).catch(() => {});
+        }
+      });
+    } catch {}
 
     return NextResponse.json(newTournament);
   } catch (e) {
