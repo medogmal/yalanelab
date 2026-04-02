@@ -1,0 +1,70 @@
+<<<<<<< HEAD
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+.next/
+out/
+dist/
+
+# Database (local only — لا ترفع الـ DB)
+prisma/dev.db
+prisma/dev.db-journal
+prisma/*.db
+prisma/*.db-journal
+
+# Environment variables (مهم جداً — لا ترفع أبداً)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.production
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# PWA (auto-generated — لا ترفع)
+# public/icons/ يمكن رفعهم لو اتولدوا
+
+# Redis dump
+dump.rdb
+
+# Misc
+.vercel
+*.pem
+=======
+# Node
+node_modules/
+.next/
+.env
+.env.local
+.env.production
+dist/
+build/
+*.log
+.DS_Store
+>>>>>>> 9e2f8a0 (yalaworld)
