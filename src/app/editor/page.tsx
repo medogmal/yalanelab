@@ -1,8 +1,8 @@
+"use client";
 // ═══════════════════════════════════════════════════════════════
 //  YALA EDITOR v2 — Unity-inspired Game Editor
 //  Hierarchy | 3D Canvas | Inspector (Components) | Visual Scripting
 // ═══════════════════════════════════════════════════════════════
-"use client";
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
