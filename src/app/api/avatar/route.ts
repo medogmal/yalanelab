@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
-import { loadUsers, saveUsers } from "@/lib/auth/store";
+import { loadUsers, updateUser } from "@/lib/auth/store";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +25,6 @@ export async function POST(req: NextRequest) {
   if (avatarUrl)  users[idx].avatarUrl  = avatarUrl;
   if (playerName) users[idx].avatarName = playerName;
   users[idx].avatarUpdatedAt = new Date().toISOString();
-  saveUsers(users);
+  updateUser(users[idx]);
   return NextResponse.json({ ok: true });
 }

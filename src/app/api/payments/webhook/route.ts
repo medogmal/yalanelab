@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { loadUsers, saveUsers } from "@/lib/auth/store";
+import { loadUsers, updateUser } from "@/lib/auth/store";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
       if (u) {
         if (!u.profile) u.profile = {};
         u.profile.coins = (u.profile.coins || 0) + coins;
-        saveUsers(users);
+        updateUser(u);
         console.log(`[Stripe Webhook] +${coins} coins → user ${userId}`);
       }
     }
