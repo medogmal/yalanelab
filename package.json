@@ -13,10 +13,7 @@
     "db:reset": "npx prisma migrate reset --force && npx prisma migrate dev"
   },
   "dependencies": {
-<<<<<<< HEAD
-=======
     "@anthropic-ai/sdk": "^0.82.0",
->>>>>>> 9e2f8a0 (yalaworld)
     "@next-auth/prisma-adapter": "^1.0.7",
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.5.0",

@@ -123,8 +123,6 @@
       "carbon",
       "ocean"
     ]
-<<<<<<< HEAD
-=======
   },
   {
     "id": "af8ba859-fdbf-40cb-bb75-fcb72ff53275",
@@ -183,6 +181,5 @@
     "longestWinStreakDomino": 0,
     "currentWinStreakDomino": 0,
     "totalDurationDomino": 0
->>>>>>> 9e2f8a0 (yalaworld)
   }
 ]

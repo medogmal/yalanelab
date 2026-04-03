@@ -7,6 +7,7 @@ import React, { useEffect, useRef, useCallback } from "react";
 import * as THREE from "three";
 import { useEditorStore } from "@/store/editorStore";
 import type { GameObject, ObjectType } from "@/types/editor";
+import { ASSET_LIBRARY } from "@/data/assets3d";
 
 // ── ألوان الشخصيات ──────────────────────────────────────────
 const CHAR_COLORS: Record<string, { body: number; head: number; accent: number }> = {
@@ -251,6 +252,15 @@ function buildDragon(): THREE.Group {
 // ── بناء أي object بناءً على النوع ─────────────────────────
 function buildObject3D(obj: GameObject): THREE.Object3D {
   const spriteKey: string = (obj as any).spriteKey || "";
+  const assetScale: number = (obj as any).assetScale ?? 1;
+
+  // ── أصول المكتبة (بيوت، مولات، أثاث...) ──
+  const assetDef = ASSET_LIBRARY.find(a => a.id === spriteKey);
+  if (assetDef) {
+    const group = assetDef.build();
+    group.scale.setScalar(assetScale);
+    return group;
+  }
 
   // شخصيات خاصة
   if (spriteKey === "enemy_slime")    return buildSlime();
