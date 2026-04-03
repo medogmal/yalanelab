@@ -18,6 +18,8 @@ import {
   GitBranch, Workflow, Variable, Repeat, Clock, Radio,
 } from "lucide-react";
 import dynamic from "next/dynamic";
+import { ALL_CHARACTERS, CHARACTER_CATEGORIES, getCharactersByCategory } from "@/data/characters";
+import { ASSET_LIBRARY, ASSET_CATEGORIES, getAssetsByCategory } from "@/data/assets3d";
 import { useEditorStore, createGameObject } from "@/store/editorStore";
 import type {
   EditorTool, EditorPanel, GameObject, GameComponent,
@@ -848,20 +850,23 @@ function HierarchyPanel() {
     o.tag.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const PANELS: { id: EditorPanel; icon: React.ReactNode }[] = [
-    { id: "hierarchy",    icon: <Layers size={12} /> },
-    { id: "visualScript", icon: <Workflow size={12} /> },
-    { id: "assets",       icon: <Package size={12} /> },
-    { id: "settings",     icon: <Settings size={12} /> },
-    { id: "console",      icon: <Terminal size={12} /> },
+  const PANELS: { id: EditorPanel; icon: React.ReactNode; tip: string }[] = [
+    { id: "hierarchy",    icon: <Layers size={12} />,   tip: "Hierarchy" },
+    { id: "characters",   icon: <span style={{fontSize:11}}>👥</span>, tip: "شخصيات" },
+    { id: "assets",       icon: <Package size={12} />,  tip: "أصول 3D" },
+    { id: "visualScript", icon: <Workflow size={12} />, tip: "Visual Script" },
+    { id: "settings",     icon: <Settings size={12} />, tip: "إعدادات" },
+    { id: "console",      icon: <Terminal size={12} />, tip: "Console" },
   ];
+  const [charCat, setCharCat] = useState("hero");
+  const [assetCat, setAssetCat] = useState("houses");
 
   return (
     <div style={{ width: 230, background: T.bgPanel, borderRight: `1px solid ${T.border}`, display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
       {/* Panel Tabs */}
       <div style={{ display: "flex", borderBottom: `1px solid ${T.border}`, flexShrink: 0 }}>
         {PANELS.map(p => (
-          <button key={p.id} onClick={() => store.setPanel(p.id)}
+          <button key={p.id} onClick={() => store.setPanel(p.id)} title={p.tip}
             style={{ flex: 1, height: 34, background: "transparent", border: "none", borderBottom: ui.activePanel === p.id ? `2px solid ${T.accent}` : "2px solid transparent", color: ui.activePanel === p.id ? T.accent : T.text600, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
             {p.icon}
           </button>
@@ -961,6 +966,94 @@ function HierarchyPanel() {
             </AnimatePresence>
           </div>
         </>
+      )}
+
+      {/* Characters Panel */}
+      {ui.activePanel === "characters" && (
+        <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+          {/* Category tabs */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 3, padding: "6px 6px 3px", borderBottom: `1px solid ${T.border}`, flexShrink: 0 }}>
+            {CHARACTER_CATEGORIES.map(cat => (
+              <button key={cat.id} onClick={() => setCharCat(cat.id)}
+                style={{ background: charCat === cat.id ? T.accentSoft : "transparent", border: `1px solid ${charCat === cat.id ? T.accent : T.border}`, borderRadius: 5, color: charCat === cat.id ? T.accent : T.text400, padding: "2px 6px", fontSize: 10, cursor: "pointer", display: "flex", alignItems: "center", gap: 2, fontFamily: "var(--font-cairo)" }}>
+                <span>{cat.icon}</span>{cat.label}
+              </button>
+            ))}
+          </div>
+          {/* Grid */}
+          <div style={{ flex: 1, overflow: "auto", padding: "6px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5 }}>
+            {getCharactersByCategory(charCat).map(char => (
+              <div key={char.id}
+                title={`إضافة ${char.name}`}
+                onClick={() => {
+                  const sc = store.getActiveScene();
+                  if (!sc) return;
+                  const groundY = Math.round(sc.height * 0.82) - char.height;
+                  store.addObject({
+                    id: `obj_${Date.now()}`,
+                    name: char.name,
+                    tag: char.category === "hero" ? "Player" : char.category === "enemy" || char.category === "boss" ? "Enemy" : "Untagged",
+                    layer: 0, active: true, isStatic: false, parentId: null, childIds: [],
+                    type: char.category === "hero" ? "player" : char.category === "boss" || char.category === "enemy" ? "enemy" : "npc",
+                    x: Math.round(sc.width * 0.3 + Math.random() * sc.width * 0.4),
+                    y: groundY, width: char.width, height: char.height,
+                    rotation: 0, visible: true, locked: false,
+                    color: { r: 124, g: 58, b: 237, a: 1 }, tags: [], components: [],
+                    spriteKey: char.id,
+                  } as any);
+                }}
+                style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 8, padding: "8px 4px", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, transition: "all .15s" }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = T.accent; e.currentTarget.style.background = T.accentSoft; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.background = T.bgCard; }}
+              >
+                <div style={{ width: 52, height: 52 }} dangerouslySetInnerHTML={{ __html: char.svg.replace(/viewBox="([^"]+)"/, `viewBox="$1" width="52" height="52"`) }} />
+                <span style={{ fontSize: 9, color: T.text200, fontFamily: "var(--font-cairo)", textAlign: "center", fontWeight: 600 }}>{char.name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Assets 3D Panel */}
+      {ui.activePanel === "assets" && (
+        <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 3, padding: "6px 6px 3px", borderBottom: `1px solid ${T.border}`, flexShrink: 0 }}>
+            {ASSET_CATEGORIES.map(cat => (
+              <button key={cat.id} onClick={() => setAssetCat(cat.id)}
+                style={{ background: assetCat === cat.id ? T.accentSoft : "transparent", border: `1px solid ${assetCat === cat.id ? T.accent : T.border}`, borderRadius: 5, color: assetCat === cat.id ? T.accent : T.text400, padding: "2px 6px", fontSize: 10, cursor: "pointer", display: "flex", alignItems: "center", gap: 2, fontFamily: "var(--font-cairo)" }}>
+                <span>{cat.icon}</span>{cat.label}
+              </button>
+            ))}
+          </div>
+          <div style={{ flex: 1, overflow: "auto", padding: "6px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5 }}>
+            {getAssetsByCategory(assetCat).map(asset => (
+              <div key={asset.id}
+                title={`إضافة ${asset.name}`}
+                onClick={() => {
+                  const sc = store.getActiveScene();
+                  if (!sc) return;
+                  store.addObject({
+                    id: `obj_${Date.now()}`,
+                    name: asset.name, tag: "Untagged", layer: 0, active: true,
+                    isStatic: true, parentId: null, childIds: [],
+                    type: "decoration",
+                    x: Math.round(sc.width * 0.3 + Math.random() * sc.width * 0.4),
+                    y: Math.round(sc.height * 0.5),
+                    width: 80, height: 80, rotation: 0, visible: true, locked: false,
+                    color: { r: 100, g: 150, b: 200, a: 1 }, tags: [], components: [],
+                    spriteKey: asset.id, assetScale: asset.scale ?? 1,
+                  } as any);
+                }}
+                style={{ background: T.bgCard, border: `1px solid ${T.border}`, borderRadius: 8, padding: "8px 4px", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, transition: "all .15s" }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = T.accent; e.currentTarget.style.background = T.accentSoft; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.background = T.bgCard; }}
+              >
+                <span style={{ fontSize: 26 }}>{asset.icon}</span>
+                <span style={{ fontSize: 9, color: T.text200, fontFamily: "var(--font-cairo)", textAlign: "center", fontWeight: 600, lineHeight: 1.3 }}>{asset.name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* Visual Script tab */}
@@ -1137,7 +1230,12 @@ function Toolbar() {
         <Sparkles size={12} /> AI
       </button>
 
-      {/* Back */}
+      {/* Projects & Back */}
+      <button onClick={() => router.push("/editor/projects")}
+        title="مشاريعي"
+        style={{ background: "transparent", border: `1px solid ${T.border}`, borderRadius: 7, color: T.text400, padding: "0 8px", height: 28, fontSize: 11, display: "flex", alignItems: "center", gap: 5, cursor: "pointer", fontFamily: "var(--font-cairo)" }}>
+        📂
+      </button>
       <button onClick={() => router.push("/admin")}
         style={{ background: "transparent", border: `1px solid ${T.border}`, borderRadius: 7, color: T.text400, padding: "0 8px", height: 28, fontSize: 11, display: "flex", alignItems: "center", gap: 5, cursor: "pointer", fontFamily: "var(--font-cairo)" }}>
         <LayoutDashboard size={12} />
@@ -1365,6 +1463,10 @@ export default function EditorPage() {
             <button onClick={() => setShowNew(true)}
               style={{ background: T.accent, border: "none", borderRadius: 10, color: "#fff", padding: "12px 28px", fontSize: 14, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 7, fontFamily: "var(--font-cairo)" }}>
               <Plus size={16} /> مشروع جديد
+            </button>
+            <button onClick={() => router.push("/editor/projects")}
+              style={{ background: T.bgCard, border: `1px solid ${T.borderMd}`, borderRadius: 10, color: T.text200, padding: "12px 24px", fontSize: 14, cursor: "pointer", fontFamily: "var(--font-cairo)", display: "flex", alignItems: "center", gap: 7 }}>
+              📂 مشاريعي
             </button>
           </div>
         </motion.div>

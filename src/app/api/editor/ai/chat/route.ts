@@ -1,113 +1,97 @@
-// ═══════════════════════════════════════════════════════════
-//  YALA EDITOR — AI Chat API
-//  POST /api/editor/ai/chat
-// ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+//  API: /api/editor/ai/chat — AI Game Designer
+// ═══════════════════════════════════════════════════════════════
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth/session";
 import Anthropic from "@anthropic-ai/sdk";
 
 const client = new Anthropic();
 
-const SYSTEM_PROMPT = `أنت مساعد ذكاء اصطناعي متخصص في بناء الألعاب داخل منصة "يالا نلعب".
-لديك وصول كامل لـ engineData الخاص بمشروع اللعبة وتقدر تعدّله.
+const SYSTEM = `أنت مصمم ألعاب AI متخصص في منصة يالا نلعب.
+عندك قدرة تعدّل على engineData اللعبة مباشرة.
 
-engineData له الهيكل ده:
+هيكل engineData:
 {
-  scenes: [{ id, name, width, height, gravity, backgroundColor:{r,g,b,a}, objects:[...] }],
-  settings: { screenWidth, screenHeight, physics, language },
-  story: { title, synopsis, winCondition, loseCondition }
+  version: "2.0",
+  scenes: [{
+    id, name, width, height, gravity,
+    backgroundColor: {r,g,b,a},
+    objects: [{
+      id, name, type, tag, x, y, width, height, rotation,
+      active, visible, locked, color:{r,g,b,a}, layer, tags,
+      components: [
+        { type:"Transform", position:{x,y,z}, rotation:{x,y,z}, scale:{x,y,z} },
+        { type:"Rigidbody2D", bodyType:"Dynamic|Static|Kinematic", mass, gravityScale },
+        { type:"BoxCollider2D", isTrigger, size:{x,y} },
+        { type:"PlayerController", moveSpeed, jumpForce, maxJumps },
+        { type:"EnemyAI", aiPattern:"patrol|chase|guard", moveSpeed, attackDamage },
+        { type:"HealthSystem", maxHealth, currentHealth, deathAction },
+        { type:"SpriteRenderer", spriteKey, color:{r,g,b,a} }
+      ]
+    }]
+  }],
+  settings: { screenWidth, screenHeight, physics, gravity, targetFPS }
 }
 
-كل object له: { id, name, type, x, y, width, height, rotation, visible, locked, color:{r,g,b,a}, layer, tags }
-أنواع الـ objects: player, enemy, platform, wall, trigger, collectible, npc, spawn, goal, decoration, text
+أنواع objects: player, enemy, platform, wall, trigger, collectible, npc, spawn, goal, decoration
 
-ردودك لازم تكون JSON فقط (بدون backticks أو markdown):
+ردك لازم يكون JSON فقط بدون markdown:
 {
-  "message": "رسالة للمستخدم بالعربي",
-  "patch": { ... تعديلات على engineData ... } أو null لو مش محتاج تعديل
+  "message": "شرح بالعربي",
+  "patch": { ... تعديلات كاملة ... } أو null
 }
 
-الـ patch ممكن يحتوي على:
-- "scenes": مصفوفة كاملة بعد التعديل
-- "settings": object التعديلات على الإعدادات
-- "story": object التعديلات على القصة
+للـ patch، ابعت الـ scenes array كاملة بعد التعديل.
 
-أمثلة على المطالب:
-- "ضيف منصات" → ضيف 3-5 platform objects في الـ scene الأولى
-- "اعمل عدو" → ضيف enemy object
-- "غير الخلفية لأحمر" → عدّل backgroundColor في الـ scene
-- "شرح لي" → اشرح بدون patch
-
-مهم:
-- الـ id لازم يكون unique: استخدم "obj_ai_" + رقم عشوائي
-- الألوان بـ {r,g,b,a} مش hex
-- الإحداثيات لازم تكون داخل حدود الـ scene
+قواعد مهمة:
+- IDs فريدة: "obj_ai_" + timestamp + رقم عشوائي
+- الألوان {r,g,b,a} مش hex
+- الإحداثيات داخل حدود الـ scene
+- لما تضيف لاعب: اضيف PlayerController + Rigidbody2D + BoxCollider2D + HealthSystem
+- لما تضيف عدو: اضيف EnemyAI + Rigidbody2D + BoxCollider2D + HealthSystem
 - ردّ بالعربي دايماً`;
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
-    }
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
 
     const { message, engineData, history = [] } = await req.json();
+    if (!message?.trim()) return NextResponse.json({ error: "الرسالة مطلوبة" }, { status: 400 });
 
-    if (!message || typeof message !== "string") {
-      return NextResponse.json({ error: "الرسالة مطلوبة" }, { status: 400 });
-    }
-
-    // Build messages array with history
     const messages: Anthropic.MessageParam[] = [];
 
-    // Add history (last 6 messages)
-    for (const h of history.slice(-6)) {
-      messages.push({
-        role: h.role === "user" ? "user" : "assistant",
-        content: h.content,
-      });
+    // Add history (last 8 messages)
+    for (const h of history.slice(-8)) {
+      messages.push({ role: h.role === "user" ? "user" : "assistant", content: h.content });
     }
 
-    // Add current user message with game state
+    // Current message with game state
     messages.push({
       role: "user",
-      content: `حالة اللعبة الحالية:
-${JSON.stringify(engineData, null, 2)}
-
-طلب المستخدم: ${message}`,
+      content: `حالة اللعبة:\n${JSON.stringify(engineData, null, 2)}\n\nطلب: ${message}`,
     });
 
     const response = await client.messages.create({
       model: "claude-opus-4-5",
-      max_tokens: 2000,
-      system: SYSTEM_PROMPT,
+      max_tokens: 4000,
+      system: SYSTEM,
       messages,
     });
 
-    const rawText = response.content
-      .filter((b) => b.type === "text")
-      .map((b) => (b as Anthropic.TextBlock).text)
-      .join("");
+    const rawText = response.content.filter(b => b.type === "text").map(b => (b as Anthropic.TextBlock).text).join("");
 
-    // Parse JSON response
     let parsed: { message: string; patch: object | null };
     try {
-      // Remove any accidental markdown fences
       const clean = rawText.replace(/```json|```/g, "").trim();
       parsed = JSON.parse(clean);
     } catch {
-      // If not valid JSON, return as plain message
       parsed = { message: rawText, patch: null };
     }
 
-    return NextResponse.json({
-      message: parsed.message || "تم",
-      patch: parsed.patch || null,
-    });
-  } catch (error: unknown) {
+    return NextResponse.json({ message: parsed.message || "تم", patch: parsed.patch || null });
+  } catch (error) {
     console.error("[AI Chat] Error:", error);
-    const msg = error instanceof Error ? error.message : "خطأ غير معروف";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return NextResponse.json({ error: "خطأ في الـ AI" }, { status: 500 });
   }
 }
