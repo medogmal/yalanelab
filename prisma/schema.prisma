@@ -1,6 +1,5 @@
 // ═══════════════════════════════════════════════════
 //  يالا ورلد — Prisma Schema الكامل
-//  يدعم: SQLite (dev) + PostgreSQL (production)
 // ═══════════════════════════════════════════════════
 
 generator client {
@@ -8,15 +7,9 @@ generator client {
 }
 
 datasource db {
-<<<<<<< HEAD
-  provider = env("DB_PROVIDER") // "sqlite" أو "postgresql"
-=======
   provider = "sqlite"
->>>>>>> 9e2f8a0 (yalaworld)
   url      = env("DATABASE_URL")
 }
-
-// ── Auth Models ──────────────────────────────────
 
 model Account {
   id                String  @id @default(cuid())
@@ -50,8 +43,6 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-// ── User ─────────────────────────────────────────
-
 model User {
   id            String    @id @default(cuid())
   name          String?
@@ -59,7 +50,7 @@ model User {
   emailVerified DateTime?
   image         String?
   password      String?
-  role          String    @default("user")  // user | admin | super_admin | creator
+  role          String    @default("user")
   country       String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -77,19 +68,13 @@ model User {
   parentalCtrl  ParentalControl?
   childOf       ParentalControl?  @relation("ParentChild")
   streaks       DailyStreak?
-<<<<<<< HEAD
-=======
   gameProjects  GameProject[]     @relation("OwnerProjects")
->>>>>>> 9e2f8a0 (yalaworld)
 }
-
-// ── Profile ───────────────────────────────────────
 
 model Profile {
   id           String    @id @default(cuid())
   userId       String    @unique
   user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
   level        Int       @default(1)
   xp           Int       @default(0)
   coins        Int       @default(1000)
@@ -97,56 +82,38 @@ model Profile {
   bio          String?
   vip          Boolean   @default(false)
   vipExpires   DateTime?
-
-  // Game ratings
   ludoRating   Int       @default(1200)
   chessRating  Int       @default(1200)
   balootRating Int       @default(1200)
   dominoRating Int       @default(1200)
-
-  // Skins
   avatarSkin   String    @default("default")
   ludoSkin     String    @default("skin_default")
   chessSkin    String    @default("skin_wood")
   balootSkin   String    @default("skin_classic")
   dominoSkin   String    @default("skin_ivory")
-
   updatedAt    DateTime  @updatedAt
 }
 
-// ── Avatar (Custom System — بدل Ready Player Me) ──
-
 model UserAvatar {
-  id          String   @id @default(cuid())
-  userId      String   @unique
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // Custom avatar data (JSON)
-  skinColor   String   @default("#F5C99A")
-  hairColor   String   @default("#2A1A05")
-  eyeColor    String   @default("#2672D9")
-  shirtColor  String   @default("#3B7FDB")
-  pantsColor  String   @default("#2E2E52")
-  shoeColor   String   @default("#1A1410")
-
-  // Mode
-  mode        String   @default("default")  // default | cartoon | war | adventure
-
-  // Accessories
-  hasHelmet   Boolean  @default(false)
-  hasArmor    Boolean  @default(false)
-  hasCape     Boolean  @default(false)
-  helmetColor String   @default("#666666")
-  armorColor  String   @default("#808099")
-  capeColor   String   @default("#B31A1A")
-
-  // Thumbnail URL (generated server-side or via Unity WebGL)
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skinColor    String   @default("#F5C99A")
+  hairColor    String   @default("#2A1A05")
+  eyeColor     String   @default("#2672D9")
+  shirtColor   String   @default("#3B7FDB")
+  pantsColor   String   @default("#2E2E52")
+  shoeColor    String   @default("#1A1410")
+  mode         String   @default("default")
+  hasHelmet    Boolean  @default(false)
+  hasArmor     Boolean  @default(false)
+  hasCape      Boolean  @default(false)
+  helmetColor  String   @default("#666666")
+  armorColor   String   @default("#808099")
+  capeColor    String   @default("#B31A1A")
   thumbnailUrl String?
-
-  updatedAt   DateTime @updatedAt
+  updatedAt    DateTime @updatedAt
 }
-
-// ── Inventory ─────────────────────────────────────
 
 model InventoryItem {
   id         String   @id @default(cuid())
@@ -157,8 +124,6 @@ model InventoryItem {
   acquiredAt DateTime @default(now())
   @@unique([userId, itemId])
 }
-
-// ── Matches ───────────────────────────────────────
 
 model Match {
   id           String             @id @default(cuid())
@@ -181,8 +146,6 @@ model MatchParticipant {
   joinedAt DateTime @default(now())
 }
 
-// ── Country War ───────────────────────────────────
-
 model CountryScore {
   id        Int      @id @default(autoincrement())
   country   String
@@ -192,8 +155,6 @@ model CountryScore {
   updatedAt DateTime @updatedAt
   @@unique([country, week])
 }
-
-// ── Daily Streak ──────────────────────────────────
 
 model DailyStreak {
   id            String    @id @default(cuid())
@@ -205,42 +166,28 @@ model DailyStreak {
   updatedAt     DateTime  @updatedAt
 }
 
-// ════════════════════════════════════════════════════
-//  WORLD SYSTEM
-// ════════════════════════════════════════════════════
-
 model World {
-  id           String        @id @default(cuid())
-  name         String
-  description  String
-  creatorId    String
-  creator      User          @relation("CreatorWorlds", fields: [creatorId], references: [id])
-
-  // Assets
-  thumbnailUrl String?
-  screenshotsJson String?   // JSON array of screenshot URLs
-  webglUrl     String?      // R2 URL للـ WebGL build
-
-  // Metadata
-  category     String        @default("social")  // social | action | puzzle | building | adventure
-  tags         String?       // comma-separated
-  isVerified   Boolean       @default(false)
-  isPublished  Boolean       @default(false)
-  isFeatured   Boolean       @default(false)
-
-  // Stats
-  playCount    Int           @default(0)
-  likeCount    Int           @default(0)
-  playerCapacity Int         @default(50)
-
-  // World config (JSON)
-  configJson   String?       // gravity, lighting, physics settings
-
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-
-  reviews      WorldReview[]
-  likes        WorldLike[]
+  id             String        @id @default(cuid())
+  name           String
+  description    String
+  creatorId      String
+  creator        User          @relation("CreatorWorlds", fields: [creatorId], references: [id])
+  thumbnailUrl   String?
+  screenshotsJson String?
+  webglUrl       String?
+  category       String        @default("social")
+  tags           String?
+  isVerified     Boolean       @default(false)
+  isPublished    Boolean       @default(false)
+  isFeatured     Boolean       @default(false)
+  playCount      Int           @default(0)
+  likeCount      Int           @default(0)
+  playerCapacity Int           @default(50)
+  configJson     String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  reviews        WorldReview[]
+  likes          WorldLike[]
 }
 
 model WorldReview {
@@ -249,7 +196,7 @@ model WorldReview {
   world     World    @relation(fields: [worldId], references: [id], onDelete: Cascade)
   userId    String
   user      User     @relation(fields: [userId], references: [id])
-  rating    Int      // 1-5
+  rating    Int
   comment   String?
   createdAt DateTime @default(now())
   @@unique([worldId, userId])
@@ -265,105 +212,72 @@ model WorldLike {
   @@unique([worldId, userId])
 }
 
-// ════════════════════════════════════════════════════
-//  ECONOMY SYSTEM
-// ════════════════════════════════════════════════════
-
 model CoinTransaction {
-  id             String          @id @default(cuid())
-  userId         String
-  user           User            @relation(fields: [userId], references: [id])
-  amount         Int             // موجب = ربح، سالب = صرف
-  type           String          // PURCHASE | SPEND_AVATAR | SPEND_WORLD | CREATOR_REVENUE | DAILY_BONUS | STRIPE_BUY
-  description    String
-  worldId        String?
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  amount          Int
+  type            String
+  description     String
+  worldId         String?
   stripePaymentId String?
-  createdAt      DateTime        @default(now())
+  createdAt       DateTime @default(now())
 }
 
 model StripePayment {
-  id              String   @id @default(cuid())
-  userId          String
-  stripeId        String   @unique  // Stripe PaymentIntent ID
-  packageId       String           // "coins_100" | "coins_500" | "coins_1000" | "coins_5000"
-  amount          Int              // بالـ cents
-  coinsGranted    Int
-  status          String           // pending | completed | failed | refunded
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id           String   @id @default(cuid())
+  userId       String
+  stripeId     String   @unique
+  packageId    String
+  amount       Int
+  coinsGranted Int
+  status       String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
-
-// ════════════════════════════════════════════════════
-//  PARENTAL CONTROLS
-// ════════════════════════════════════════════════════
 
 model ParentalControl {
-  id              String   @id @default(cuid())
-  parentUserId    String   @unique
-  parent          User     @relation(fields: [parentUserId], references: [id])
-  childUserId     String   @unique
-  child           User     @relation("ParentChild", fields: [childUserId], references: [id])
-
-  // Restrictions
-  maxDailyMinutes Int      @default(120)
-  voiceChatEnabled Boolean @default(false)
-  privateMsgEnabled Boolean @default(false)
-  storeEnabled    Boolean  @default(false)
-  allowedWorldIds String?  // JSON array of allowed world IDs
-
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                String   @id @default(cuid())
+  parentUserId      String   @unique
+  parent            User     @relation(fields: [parentUserId], references: [id])
+  childUserId       String   @unique
+  child             User     @relation("ParentChild", fields: [childUserId], references: [id])
+  maxDailyMinutes   Int      @default(120)
+  voiceChatEnabled  Boolean  @default(false)
+  privateMsgEnabled Boolean  @default(false)
+  storeEnabled      Boolean  @default(false)
+  allowedWorldIds   String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }
-<<<<<<< HEAD
-=======
-
-// ════════════════════════════════════════════════════
-//  GAME EDITOR SYSTEM
-// ════════════════════════════════════════════════════
 
 model GameProject {
-  id          String   @id @default(cuid())
-  title       String
-  description String   @default("")
-  ownerId     String
-  owner       User     @relation("OwnerProjects", fields: [ownerId], references: [id], onDelete: Cascade)
-
-  // Game type
-  category    String   @default("platformer")
-  // platformer | topdown | puzzle | rpg | racing | shooter | custom
-
-  // Status
-  status      String   @default("draft")
-  // draft | published | archived
-
-  // The entire game data as JSON
-  engineData  String   @default("{}")
-
-  // Publishing
+  id           String   @id @default(cuid())
+  title        String
+  description  String   @default("")
+  ownerId      String
+  owner        User     @relation("OwnerProjects", fields: [ownerId], references: [id], onDelete: Cascade)
+  category     String   @default("platformer")
+  status       String   @default("draft")
+  engineData   String   @default("{}")
   thumbnailUrl String?
-  isPublished  Boolean @default(false)
-  isFeatured   Boolean @default(false)
-
-  // Stats
-  playCount   Int      @default(0)
-  likeCount   Int      @default(0)
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  likes       GameProjectLike[]
-
+  isPublished  Boolean  @default(false)
+  isFeatured   Boolean  @default(false)
+  playCount    Int      @default(0)
+  likeCount    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  likes        GameProjectLike[]
   @@index([ownerId])
   @@index([status])
   @@index([category])
 }
 
 model GameProjectLike {
-  id        String   @id @default(cuid())
+  id        String      @id @default(cuid())
   projectId String
   project   GameProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
   userId    String
-  createdAt DateTime @default(now())
+  createdAt DateTime    @default(now())
   @@unique([projectId, userId])
 }
->>>>>>> 9e2f8a0 (yalaworld)
