@@ -1,8 +1,4 @@
 "use client";
-// ═══════════════════════════════════════════════════════════════
-//  YALA EDITOR — Zustand Store v2 (Unity-inspired)
-//  Component System + Visual Scripting + Multi-select + Runtime
-// ═══════════════════════════════════════════════════════════════
 import { create } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
 import type {
@@ -17,19 +13,15 @@ import {
 } from "@/types/editor";
 
 // ════════════════════════════════════════════════════════════
-//  Default Engine Data (v2)
+//  Default Engine Data
 // ════════════════════════════════════════════════════════════
 function createDefaultEngineData(): GameEngineData {
   const defaultScene: GameScene = {
     id: "scene_1",
     name: "المشهد الأول",
-    width: 1920,
-    height: 1080,
+    width: 1920, height: 1080,
     backgroundColor: { r: 12, g: 15, b: 30, a: 1 },
-    gravity: 9.8,
-    objects: [],
-    events: [],
-    vsGraphs: [],
+    gravity: 9.8, objects: [], events: [], vsGraphs: [],
     ambientColor: { r: 40, g: 50, b: 80, a: 1 },
     ambientIntensity: 0.6,
   };
@@ -51,15 +43,44 @@ function createDefaultEngineData(): GameEngineData {
   };
 }
 
+// Migrate old v1.0 projects to v2.0
+function migrateEngineData(data: GameEngineData): GameEngineData {
+  return {
+    ...data,
+    version: "2.0",
+    prefabs: data.prefabs ?? [],
+    assets: { sprites: [], sounds: [], backgrounds: [], tilesets: [], ...data.assets },
+    settings: {
+      targetFPS: 60, screenWidth: 800, screenHeight: 600,
+      physics: "arcade", gravity: 9.8,
+      ...data.settings,
+    },
+    scenes: data.scenes.map(sc => ({
+      ...sc,
+      vsGraphs: sc.vsGraphs ?? [],
+      objects: sc.objects.map(obj => ({
+        tag: "Untagged",
+        active: true,
+        isStatic: obj.type === "platform" || obj.type === "wall",
+        parentId: null,
+        childIds: [],
+        components: [],
+        tags: [],
+        ...obj,
+      })),
+    })),
+  };
+}
+
 // ════════════════════════════════════════════════════════════
-//  Smart Object Factory (Unity-style defaults per type)
+//  Smart Object Factory
 // ════════════════════════════════════════════════════════════
 export function createGameObject(
   type: GameObject["type"],
   overrides: Partial<GameObject> = {}
 ): GameObject {
   const id = `obj_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-  const base: GameObject = {
+  return {
     id,
     name: labelOf(type),
     tag: tagOf(type),
@@ -81,15 +102,14 @@ export function createGameObject(
     components: defaultComponents(type),
     ...overrides,
   };
-  return base;
 }
 
 function labelOf(t: GameObject["type"]): string {
   const m: Record<string, string> = {
-    player: "لاعب", enemy: "عدو", platform: "منصة", wall: "جدار",
-    trigger: "منطقة حدث", collectible: "جائزة", npc: "شخصية",
-    spawn: "نقطة بداية", goal: "هدف", decoration: "زخرفة",
-    text: "نص", camera: "كاميرا", light: "ضوء", emptyObject: "كائن فارغ",
+    player:"لاعب", enemy:"عدو", platform:"منصة", wall:"جدار",
+    trigger:"منطقة حدث", collectible:"جائزة", npc:"شخصية",
+    spawn:"نقطة بداية", goal:"هدف", decoration:"زخرفة",
+    text:"نص", camera:"كاميرا", light:"ضوء", emptyObject:"كائن فارغ",
   };
   return m[t] || t;
 }
@@ -116,11 +136,11 @@ function defaultHeight(t: GameObject["type"]): number {
 }
 function defaultColor(t: GameObject["type"]): import("@/types/editor").GameColor {
   const m: Record<string, [number,number,number]> = {
-    player: [124,58,237], enemy: [220,38,38], platform: [37,99,235],
-    wall: [100,116,139], trigger: [245,158,11], collectible: [16,185,129],
-    npc: [6,182,212], spawn: [132,204,22], goal: [249,115,22],
-    decoration: [167,139,250], text: [226,232,240],
-    camera: [99,102,241], light: [253,224,71], emptyObject: [100,116,139],
+    player:[124,58,237], enemy:[220,38,38], platform:[37,99,235],
+    wall:[100,116,139], trigger:[245,158,11], collectible:[16,185,129],
+    npc:[6,182,212], spawn:[132,204,22], goal:[249,115,22],
+    decoration:[167,139,250], text:[226,232,240],
+    camera:[99,102,241], light:[253,224,71], emptyObject:[100,116,139],
   };
   const [r,g,b] = m[t] || [100,100,100];
   return { r, g, b, a: 1 };
@@ -129,18 +149,18 @@ function defaultComponents(t: GameObject["type"]): GameComponent[] {
   const tr = makeTransform();
   switch (t) {
     case "player":
-      return [tr, makeSpriteRenderer(), makeRigidbody(), makeBoxCollider(0.64, 0.64), makePlayerController(), makeHealthSystem(100)];
+      return [tr, makeSpriteRenderer(), makeRigidbody(), makeBoxCollider(0.64,0.64), makePlayerController(), makeHealthSystem(100)];
     case "enemy":
-      return [tr, makeSpriteRenderer(), makeRigidbody(), makeBoxCollider(0.64, 0.64), makeEnemyAI(), makeHealthSystem(50)];
+      return [tr, makeSpriteRenderer(), makeRigidbody(), makeBoxCollider(0.64,0.64), makeEnemyAI(), makeHealthSystem(50)];
     case "platform":
     case "wall":
-      return [tr, makeSpriteRenderer(), { ...makeBoxCollider(2, 0.25), type: "BoxCollider2D" as const, enabled: true, isTrigger: false, offset: { x: 0, y: 0 }, size: { x: 2, y: 0.25 }, material: { friction: 0.4, bounciness: 0 } }];
+      return [tr, makeSpriteRenderer(), makeBoxCollider(2, 0.25)];
     case "trigger":
-      return [tr, { ...makeBoxCollider(0.8, 0.8), isTrigger: true } as GameComponent];
+      return [tr, { ...makeBoxCollider(0.8,0.8), isTrigger: true } as GameComponent];
     case "collectible":
-      return [tr, makeSpriteRenderer(), { type: "CircleCollider2D" as const, enabled: true, isTrigger: true, offset: { x:0,y:0 }, radius: 0.3, material: { friction: 0, bounciness: 0 } }];
+      return [tr, makeSpriteRenderer(), { type: "CircleCollider2D" as const, enabled: true, isTrigger: true, offset:{x:0,y:0}, radius:0.3, material:{friction:0,bounciness:0} }];
     case "npc":
-      return [tr, makeSpriteRenderer(), makeBoxCollider(0.64, 0.64)];
+      return [tr, makeSpriteRenderer(), makeBoxCollider(0.64,0.64)];
     default:
       return [tr];
   }
@@ -163,24 +183,20 @@ interface EditorStore {
   historyIndex: number;
   aiMessages: AiMessage[];
 
-  // Project
   loadProject: (p: EditorProject) => void;
   createNewProject: (title: string, category: GameEngineData["category"]) => void;
   saveProject: () => Promise<void>;
   setProjectTitle: (t: string) => void;
 
-  // Engine Data
   setEngineData: (data: GameEngineData, label?: string) => void;
   patchEngineData: (patch: Partial<GameEngineData>, label?: string) => void;
 
-  // Scenes
   getActiveScene: () => GameScene | null;
   addScene: () => void;
   removeScene: (id: string) => void;
   setActiveScene: (id: string) => void;
   updateScene: (id: string, patch: Partial<GameScene>) => void;
 
-  // Objects
   addObject: (obj: GameObject) => void;
   addObjectOfType: (type: GameObject["type"], extras?: Partial<GameObject>) => void;
   removeObject: (id: string) => void;
@@ -195,13 +211,11 @@ interface EditorStore {
   duplicateObjects: (ids: string[]) => void;
   moveObjects: (ids: string[], dx: number, dy: number) => void;
 
-  // Components
   addComponent: (objectId: string, component: GameComponent) => void;
   removeComponent: (objectId: string, componentType: string) => void;
   updateComponent: (objectId: string, componentType: string, patch: Partial<GameComponent>) => void;
   getComponent: <T extends GameComponent>(objectId: string, type: T["type"]) => T | null;
 
-  // Visual Scripting
   addVSGraph: (graph: VSGraph) => void;
   removeVSGraph: (graphId: string) => void;
   updateVSGraph: (graphId: string, patch: Partial<VSGraph>) => void;
@@ -214,16 +228,13 @@ interface EditorStore {
   selectVSGraph: (graphId: string | null) => void;
   selectVSNode: (nodeId: string | null) => void;
 
-  // Prefabs
   savePrefab: (objectId: string, name: string) => void;
   instantiatePrefab: (prefabId: string, x: number, y: number) => void;
 
-  // Events (legacy)
   addEvent: (e: GameEvent) => void;
   removeEvent: (id: string) => void;
   updateEvent: (id: string, patch: Partial<GameEvent>) => void;
 
-  // UI
   setTool: (t: EditorTool) => void;
   setPanel: (p: EditorPanel) => void;
   setRightPanel: (p: "inspector" | "vsGraph") => void;
@@ -241,13 +252,11 @@ interface EditorStore {
   logConsole: (level: "log"|"warn"|"error", msg: string, objectId?: string) => void;
   clearConsole: () => void;
 
-  // Undo/Redo
   undo: () => void;
   redo: () => void;
   canUndo: () => boolean;
   canRedo: () => boolean;
 
-  // AI
   addAiMessage: (m: AiMessage) => void;
   clearAiMessages: () => void;
   applyAiPatch: (patch: Partial<GameEngineData>) => void;
@@ -259,7 +268,6 @@ interface EditorStore {
 export const useEditorStore = create<EditorStore>()(
   subscribeWithSelector((set, get) => {
 
-    // ── helpers ──────────────────────────────────────────────
     function mutateScene(sceneId: string, fn: (s: GameScene) => GameScene, label = "تعديل"): void {
       const { project } = get();
       if (!project) return;
@@ -269,46 +277,49 @@ export const useEditorStore = create<EditorStore>()(
 
     function activeSceneId(): string | null { return get().ui.selectedSceneId; }
 
+    const initialUI: EditorUIState = {
+      activeTool: "select",
+      activePanel: "hierarchy",
+      activeRightPanel: "inspector",
+      selectedObjectId: null,
+      selectedObjectIds: [],
+      selectedSceneId: "scene_1",
+      selectedVSNodeId: null,
+      selectedVSGraphId: null,
+      zoom: 1,
+      panOffset: { x: 0, y: 0 },
+      showGrid: true,
+      showColliders: false,
+      showGizmos: true,
+      gridSize: 32,
+      snapToGrid: false,
+      isDirty: false,
+      isPlaying: false,
+      isPaused: false,
+      isSaving: false,
+      aiChatOpen: false,
+      consoleMessages: [],
+      inspectorTab: "components",
+    };
+
     return {
-      // ── State ─────────────────────────────────────────────
       project: null,
       isLoaded: false,
-      ui: {
-        activeTool: "select",
-        activePanel: "hierarchy",
-        activeRightPanel: "inspector",
-        selectedObjectId: null,
-        selectedObjectIds: [],
-        selectedSceneId: "scene_1",
-        selectedVSNodeId: null,
-        selectedVSGraphId: null,
-        zoom: 1,
-        panOffset: { x: 0, y: 0 },
-        showGrid: true,
-        showColliders: false,
-        showGizmos: true,
-        gridSize: 32,
-        snapToGrid: false,
-        isDirty: false,
-        isPlaying: false,
-        isPaused: false,
-        isSaving: false,
-        aiChatOpen: false,
-        consoleMessages: [],
-        inspectorTab: "components",
-      },
+      ui: initialUI,
       history: [],
       historyIndex: -1,
       aiMessages: [],
 
       // ── Project ───────────────────────────────────────────
       loadProject: (project) => {
+        const migrated = migrateEngineData(project.engineData);
+        const p = { ...project, engineData: migrated };
         set({
-          project,
+          project: p,
           isLoaded: true,
-          history: [{ engineData: project.engineData, timestamp: Date.now(), label: "فتح المشروع" }],
+          history: [{ engineData: migrated, timestamp: Date.now(), label: "فتح المشروع" }],
           historyIndex: 0,
-          ui: { ...get().ui, selectedSceneId: project.engineData.scenes[0]?.id || null, isDirty: false },
+          ui: { ...get().ui, selectedSceneId: migrated.scenes[0]?.id ?? null, isDirty: false },
         });
       },
 
@@ -331,11 +342,7 @@ export const useEditorStore = create<EditorStore>()(
           const isNew = !project.id;
           const res = await fetch(
             isNew ? "/api/editor/projects" : `/api/editor/projects/${project.id}`,
-            {
-              method: isNew ? "POST" : "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ title: project.title, description: project.description, category: project.category, engineData: project.engineData }),
-            }
+            { method: isNew ? "POST" : "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: project.title, description: project.description, category: project.category, engineData: project.engineData }) }
           );
           if (!res.ok) throw new Error("فشل الحفظ");
           const saved = await res.json();
@@ -409,7 +416,11 @@ export const useEditorStore = create<EditorStore>()(
       addObjectOfType: (type, extras = {}) => {
         const scene = get().getActiveScene();
         if (!scene) return;
-        const obj = createGameObject(type, { x: scene.width * 0.3 + Math.random() * scene.width * 0.4, y: scene.height * 0.4, ...extras });
+        const obj = createGameObject(type, {
+          x: scene.width * 0.3 + Math.random() * scene.width * 0.4,
+          y: scene.height * 0.4,
+          ...extras,
+        });
         get().addObject(obj);
       },
 
@@ -428,17 +439,13 @@ export const useEditorStore = create<EditorStore>()(
 
       updateObject: (id, patch) => {
         const sid = activeSceneId(); if (!sid) return;
-        mutateScene(sid, s => ({
-          ...s, objects: s.objects.map(o => o.id === id ? { ...o, ...patch } : o)
-        }), "تعديل عنصر");
+        mutateScene(sid, s => ({ ...s, objects: s.objects.map(o => o.id === id ? { ...o, ...patch } : o) }), "تعديل عنصر");
       },
 
       selectObject: (id) =>
         set(s => ({ ui: { ...s.ui, selectedObjectId: id, selectedObjectIds: id ? [id] : [] } })),
-
       selectObjects: (ids) =>
         set(s => ({ ui: { ...s.ui, selectedObjectIds: ids, selectedObjectId: ids[0] ?? null } })),
-
       toggleSelectObject: (id) => {
         const { selectedObjectIds } = get().ui;
         const next = selectedObjectIds.includes(id)
@@ -446,7 +453,6 @@ export const useEditorStore = create<EditorStore>()(
           : [...selectedObjectIds, id];
         set(s => ({ ui: { ...s.ui, selectedObjectIds: next, selectedObjectId: next[next.length - 1] ?? null } }));
       },
-
       clearSelection: () =>
         set(s => ({ ui: { ...s.ui, selectedObjectId: null, selectedObjectIds: [] } })),
 
@@ -474,9 +480,7 @@ export const useEditorStore = create<EditorStore>()(
 
       moveObjects: (ids, dx, dy) => {
         const sid = activeSceneId(); if (!sid) return;
-        mutateScene(sid, s => ({
-          ...s, objects: s.objects.map(o => ids.includes(o.id) ? { ...o, x: o.x + dx, y: o.y + dy } : o)
-        }), "تحريك عناصر");
+        mutateScene(sid, s => ({ ...s, objects: s.objects.map(o => ids.includes(o.id) ? { ...o, x: o.x + dx, y: o.y + dy } : o) }), "تحريك عناصر");
       },
 
       // ── Components ────────────────────────────────────────
@@ -484,8 +488,7 @@ export const useEditorStore = create<EditorStore>()(
         const sid = activeSceneId(); if (!sid) return;
         mutateScene(sid, s => ({
           ...s, objects: s.objects.map(o => o.id === objectId
-            ? { ...o, components: [...(o.components || []), component] }
-            : o)
+            ? { ...o, components: [...(o.components || []), component] } : o)
         }), `إضافة ${component.type}`);
       },
 
@@ -493,8 +496,7 @@ export const useEditorStore = create<EditorStore>()(
         const sid = activeSceneId(); if (!sid) return;
         mutateScene(sid, s => ({
           ...s, objects: s.objects.map(o => o.id === objectId
-            ? { ...o, components: (o.components || []).filter(c => c.type !== componentType) }
-            : o)
+            ? { ...o, components: (o.components || []).filter(c => c.type !== componentType) } : o)
         }), `حذف ${componentType}`);
       },
 
@@ -502,8 +504,7 @@ export const useEditorStore = create<EditorStore>()(
         const sid = activeSceneId(); if (!sid) return;
         mutateScene(sid, s => ({
           ...s, objects: s.objects.map(o => o.id === objectId
-            ? { ...o, components: (o.components || []).map(c => c.type === componentType ? { ...c, ...patch } : c) }
-            : o)
+            ? { ...o, components: (o.components || []).map(c => c.type === componentType ? { ...c, ...patch } : c) } : o)
         }), `تعديل ${componentType}`);
       },
 
@@ -523,6 +524,8 @@ export const useEditorStore = create<EditorStore>()(
       removeVSGraph: (graphId) => {
         const sid = activeSceneId(); if (!sid) return;
         mutateScene(sid, s => ({ ...s, vsGraphs: (s.vsGraphs || []).filter(g => g.id !== graphId) }), "حذف VS Graph");
+        if (get().ui.selectedVSGraphId === graphId)
+          set(st => ({ ui: { ...st.ui, selectedVSGraphId: null } }));
       },
 
       updateVSGraph: (graphId, patch) => {
@@ -541,7 +544,7 @@ export const useEditorStore = create<EditorStore>()(
         const sid = activeSceneId(); if (!sid) return;
         mutateScene(sid, s => ({
           ...s, vsGraphs: (s.vsGraphs || []).map(g => g.id === graphId ? { ...g, nodes: [...g.nodes, node] } : g)
-        }), `إضافة node: ${node.label}`);
+        }), `إضافة node`);
       },
 
       removeVSNode: (graphId, nodeId) => {
@@ -557,8 +560,7 @@ export const useEditorStore = create<EditorStore>()(
         const sid = activeSceneId(); if (!sid) return;
         mutateScene(sid, s => ({
           ...s, vsGraphs: (s.vsGraphs || []).map(g => g.id === graphId
-            ? { ...g, nodes: g.nodes.map(n => n.id === nodeId ? { ...n, ...patch } : n) }
-            : g)
+            ? { ...g, nodes: g.nodes.map(n => n.id === nodeId ? { ...n, ...patch } : n) } : g)
         }), "تعديل node");
       },
 
@@ -573,31 +575,32 @@ export const useEditorStore = create<EditorStore>()(
         const sid = activeSceneId(); if (!sid) return;
         mutateScene(sid, s => ({
           ...s, vsGraphs: (s.vsGraphs || []).map(g => g.id === graphId
-            ? { ...g, connections: g.connections.filter(c => c.id !== connId) }
-            : g)
+            ? { ...g, connections: g.connections.filter(c => c.id !== connId) } : g)
         }), "قطع ربط");
       },
 
-      selectVSGraph: (id) => set(s => ({ ui: { ...s.ui, selectedVSGraphId: id, activeRightPanel: id ? "vsGraph" : "inspector" } })),
-      selectVSNode: (id) => set(s => ({ ui: { ...s.ui, selectedVSNodeId: id } })),
+      selectVSGraph: (id) =>
+        set(s => ({ ui: { ...s.ui, selectedVSGraphId: id, activeRightPanel: id ? "vsGraph" : "inspector" } })),
+      selectVSNode: (id) =>
+        set(s => ({ ui: { ...s.ui, selectedVSNodeId: id } })),
 
       // ── Prefabs ───────────────────────────────────────────
       savePrefab: (objectId, name) => {
         const scene = get().getActiveScene();
         const obj = scene?.objects.find(o => o.id === objectId);
         if (!obj || !get().project) return;
-        const { id, x, y, ...template } = obj;
-        const prefab: Prefab = { id: `prefab_${Date.now()}`, name, template: template as Omit<typeof obj, "id"|"x"|"y"> };
-        get().patchEngineData({ prefabs: [...(get().project!.engineData.prefabs || []), prefab] }, "حفظ Prefab");
+        const { id: _id, x: _x, y: _y, ...template } = obj;
+        const prefab: Prefab = { id: `prefab_${Date.now()}`, name, template };
+        get().patchEngineData({ prefabs: [...(get().project!.engineData.prefabs ?? []), prefab] }, "حفظ Prefab");
       },
 
       instantiatePrefab: (prefabId, x, y) => {
-        const prefab = get().project?.engineData.prefabs.find(p => p.id === prefabId);
+        const prefab = get().project?.engineData.prefabs?.find(p => p.id === prefabId);
         if (!prefab) return;
         get().addObject({ ...prefab.template, id: `obj_${Date.now()}`, x, y, prefabId } as GameObject);
       },
 
-      // ── Events (legacy) ───────────────────────────────────
+      // ── Events ────────────────────────────────────────────
       addEvent: (event) => {
         const sid = activeSceneId(); if (!sid) return;
         mutateScene(sid, s => ({ ...s, events: [...s.events, event] }), "إضافة حدث");
@@ -627,10 +630,10 @@ export const useEditorStore = create<EditorStore>()(
       setPaused: (v) => set(s => ({ ui: { ...s.ui, isPaused: v } })),
       toggleAiChat: () => set(s => ({ ui: { ...s.ui, aiChatOpen: !s.ui.aiChatOpen } })),
 
-      logConsole: (level, msg, objectId) => set(s => ({
-        ui: { ...s.ui, consoleMessages: [...s.ui.consoleMessages, { id: `log_${Date.now()}`, level, message: msg, timestamp: Date.now(), objectId }].slice(-200) }
-      })),
-      clearConsole: () => set(s => ({ ui: { ...s.ui, consoleMessages: [] } })),
+      logConsole: (level, msg, objectId) =>
+        set(s => ({ ui: { ...s.ui, consoleMessages: [...s.ui.consoleMessages.slice(-199), { id: `log_${Date.now()}`, level, message: msg, timestamp: Date.now(), objectId }] } })),
+      clearConsole: () =>
+        set(s => ({ ui: { ...s.ui, consoleMessages: [] } })),
 
       // ── Undo / Redo ───────────────────────────────────────
       canUndo: () => get().historyIndex > 0,

@@ -1,21 +1,22 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 
 const ALLOWED_ROLES = ["admin","super_admin","tournament_organizer","player_monitor"];
 
 const NAV_LINKS = [
-  { href:"/admin",             label:"الرئيسية",    icon:"⊞",  roles:ALLOWED_ROLES },
-  { href:"/admin/users",       label:"المستخدمون",  icon:"◉",  roles:["admin","super_admin","player_monitor"] },
-  { href:"/admin/tournaments", label:"البطولات",    icon:"🎯", roles:["admin","super_admin","tournament_organizer"] },
-  { href:"/admin/games",       label:"الألعاب",     icon:"🎮", roles:["admin","super_admin"] },
+  { href:"/admin",             label:"الرئيسية",        icon:"⊞",  roles:ALLOWED_ROLES },
+  { href:"/admin/users",       label:"المستخدمون",      icon:"◉",  roles:["admin","super_admin","player_monitor"] },
+  { href:"/admin/tournaments", label:"البطولات",        icon:"🎯", roles:["admin","super_admin","tournament_organizer"] },
+  { href:"/admin/games",       label:"الألعاب",         icon:"🎮", roles:["admin","super_admin"] },
   { href:"/admin/skins",       label:"المتجر والسكنات", icon:"🛒", roles:["super_admin"] },
-  { href:"/admin/pages",       label:"الصفحات",     icon:"≡",  roles:["admin","super_admin"] },
-  { href:"/admin/audit",       label:"سجل النشاط",  icon:"⊙",  roles:["admin","super_admin"] },
-  { href:"/admin/settings",    label:"الإعدادات",   icon:"⚙",  roles:["admin","super_admin"] },
-  { href:"/admin/superadmin",  label:"سوبر أدمن ✦", icon:"⭐", roles:["super_admin"] },
+  { href:"/admin/pages",       label:"الصفحات",         icon:"≡",  roles:["admin","super_admin"] },
+  { href:"/admin/audit",       label:"سجل النشاط",      icon:"⊙",  roles:["admin","super_admin"] },
+  { href:"/admin/settings",    label:"الإعدادات",       icon:"⚙",  roles:["admin","super_admin"] },
+  { href:"/admin/superadmin",  label:"سوبر أدمن ✦",    icon:"⭐", roles:["super_admin"] },
 ];
 
 const ROLE_LABEL: Record<string,string> = {
@@ -23,15 +24,17 @@ const ROLE_LABEL: Record<string,string> = {
   tournament_organizer:"منظم بطولات", player_monitor:"مراقب",
 };
 const ROLE_COLOR: Record<string,string> = {
-  super_admin:"#f59e0b", admin:"#7c3aed", tournament_organizer:"#8b5cf6", player_monitor:"#22c55e",
+  super_admin:"#f59e0b", admin:"#7c3aed",
+  tournament_organizer:"#8b5cf6", player_monitor:"#22c55e",
 };
 
-function Sidebar({ user, path, onClose }: { user:any; path:string; onClose?:()=>void }) {
+function Sidebar({ user, path, onClose }: { user: Record<string,string> | null; path: string; onClose?: () => void }) {
   const roleC = user ? (ROLE_COLOR[user.role] ?? "#7c3aed") : "#7c3aed";
   const links = NAV_LINKS.filter(l => user && l.roles.includes(user.role));
 
   return (
     <div style={{ height:"100%", display:"flex", flexDirection:"column", padding:"20px 14px" }}>
+
       {/* Logo */}
       <div style={{ display:"flex", alignItems:"center", gap:9, marginBottom:24 }}>
         <div style={{ width:32, height:32, borderRadius:9, background:"#7c3aed", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:900, fontSize:15, color:"#fff" }}>ي</div>
@@ -55,6 +58,32 @@ function Sidebar({ user, path, onClose }: { user:any; path:string; onClose?:()=>
           </div>
         </div>
       )}
+
+      {/* ── يالا Editor Button ── */}
+      <Link href="/editor" onClick={onClose}
+        style={{
+          display:"flex", alignItems:"center", gap:9,
+          padding:"10px 12px", borderRadius:12, marginBottom:16,
+          textDecoration:"none",
+          background:"linear-gradient(135deg, rgba(124,58,237,0.2), rgba(124,58,237,0.08))",
+          border:"1px solid rgba(124,58,237,0.35)",
+          color:"#a78bfa",
+          fontWeight:900, fontSize:12,
+          position:"relative", overflow:"hidden",
+          transition:"all .2s",
+        }}
+        onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.background = "linear-gradient(135deg,rgba(124,58,237,0.3),rgba(124,58,237,0.14))"; (e.currentTarget as HTMLAnchorElement).style.borderColor = "rgba(124,58,237,0.6)"; }}
+        onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.background = "linear-gradient(135deg,rgba(124,58,237,0.2),rgba(124,58,237,0.08))"; (e.currentTarget as HTMLAnchorElement).style.borderColor = "rgba(124,58,237,0.35)"; }}
+      >
+        {/* Glow line */}
+        <div style={{ position:"absolute", top:0, left:"10%", right:"10%", height:1, background:"linear-gradient(90deg,transparent,rgba(167,139,250,0.5),transparent)" }} />
+        <span style={{ fontSize:18, lineHeight:1 }}>🎮</span>
+        <div style={{ flex:1 }}>
+          <div style={{ fontSize:12, fontWeight:900, color:"#c4b5fd" }}>يالا Editor</div>
+          <div style={{ fontSize:9, color:"rgba(167,139,250,0.5)", fontWeight:700 }}>محرر الألعاب</div>
+        </div>
+        <span style={{ fontSize:14, color:"rgba(167,139,250,0.4)" }}>←</span>
+      </Link>
 
       {/* Nav */}
       <nav style={{ flex:1, display:"flex", flexDirection:"column", gap:2 }}>
@@ -85,10 +114,10 @@ function Sidebar({ user, path, onClose }: { user:any; path:string; onClose?:()=>
   );
 }
 
-export default function AdminLayout({ children }: { children:React.ReactNode }) {
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const path   = usePathname();
   const router = useRouter();
-  const [user,    setUser]    = useState<any>(null);
+  const [user,    setUser]    = useState<Record<string,string> | null>(null);
   const [loading, setLoading] = useState(true);
   const [mOpen,   setMOpen]   = useState(false);
 
@@ -139,6 +168,24 @@ export default function AdminLayout({ children }: { children:React.ReactNode }) 
             <span style={{ fontSize:11, color:"#404050", fontWeight:700 }}>Admin / </span>
             <span style={{ fontSize:13, fontWeight:900, color:"#f4f4f8" }}>{activeLabel}</span>
           </div>
+
+          {/* Editor quick-access in topbar */}
+          <Link href="/editor"
+            style={{
+              display:"flex", alignItems:"center", gap:6, padding:"5px 12px",
+              borderRadius:8, textDecoration:"none",
+              background:"rgba(124,58,237,0.12)",
+              border:"1px solid rgba(124,58,237,0.25)",
+              color:"#a78bfa", fontSize:11, fontWeight:800,
+              transition:"all .15s",
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.background = "rgba(124,58,237,0.22)"; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.background = "rgba(124,58,237,0.12)"; }}
+          >
+            <span style={{ fontSize:14 }}>🎮</span>
+            <span className="adm-desk-txt">Editor</span>
+          </Link>
+
           {user && (
             <span style={{ fontSize:10, fontWeight:800, padding:"3px 10px", borderRadius:99, background:"rgba(124,58,237,0.1)", border:"1px solid rgba(124,58,237,0.18)", color:"#a78bfa" }}>
               {ROLE_LABEL[user.role] ?? user.role}
@@ -154,7 +201,12 @@ export default function AdminLayout({ children }: { children:React.ReactNode }) 
       <style>{`
         .adm-desk{display:flex!important;flex-direction:column;}
         .adm-mob{display:none!important;}
-        @media(max-width:767px){.adm-desk{display:none!important;}.adm-mob{display:flex!important;}}
+        .adm-desk-txt{display:inline;}
+        @media(max-width:767px){
+          .adm-desk{display:none!important;}
+          .adm-mob{display:flex!important;}
+          .adm-desk-txt{display:none;}
+        }
       `}</style>
     </div>
   );

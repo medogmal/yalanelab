@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 const CHART_DATA = [
@@ -27,16 +28,51 @@ const ALERTS = [
 ];
 
 export default function AdminDashboard() {
+  const router = useRouter();
+
   return (
     <div style={{display:"flex",flexDirection:"column",gap:24,maxWidth:1100}}>
-      {/* Title */}
-      <div>
-        <h1 style={{fontWeight:900,fontSize:"clamp(20px,3vw,28px)",color:"#fff",marginBottom:4}}>
-          لوحة الإدارة ◈
-        </h1>
-        <p style={{fontSize:13,fontWeight:700,color:"rgba(0,212,255,0.5)"}}>
-          مرحباً — هذه نظرة عامة على المنصة
-        </p>
+
+      {/* Title + Editor CTA */}
+      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
+        <div>
+          <h1 style={{fontWeight:900,fontSize:"clamp(20px,3vw,28px)",color:"#fff",marginBottom:4}}>
+            لوحة الإدارة ◈
+          </h1>
+          <p style={{fontSize:13,fontWeight:700,color:"rgba(0,212,255,0.5)"}}>
+            مرحباً — هذه نظرة عامة على المنصة
+          </p>
+        </div>
+
+        {/* ── Editor Launch Card ── */}
+        <motion.button
+          initial={{opacity:0,scale:0.95}} animate={{opacity:1,scale:1}} transition={{delay:0.1}}
+          onClick={() => router.push("/editor")}
+          style={{
+            display:"flex", alignItems:"center", gap:14,
+            padding:"14px 20px", borderRadius:16,
+            background:"linear-gradient(135deg,rgba(124,58,237,0.25),rgba(99,38,200,0.12))",
+            border:"1px solid rgba(124,58,237,0.4)",
+            cursor:"pointer", color:"#c4b5fd",
+            position:"relative", overflow:"hidden",
+            fontFamily:"var(--font-cairo,sans-serif)",
+          }}
+          whileHover={{ scale:1.02, borderColor:"rgba(124,58,237,0.7)" }}
+          whileTap={{ scale:0.98 }}
+        >
+          {/* animated glow top */}
+          <div style={{position:"absolute",top:0,left:"5%",right:"5%",height:1,background:"linear-gradient(90deg,transparent,rgba(167,139,250,0.6),transparent)"}} />
+          {/* icon */}
+          <div style={{
+            width:46,height:46,borderRadius:13,flexShrink:0,
+            background:"rgba(124,58,237,0.2)",border:"1px solid rgba(124,58,237,0.3)",
+            display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,
+          }}>🎮</div>
+          <div style={{textAlign:"right"}}>
+            <div style={{fontWeight:900,fontSize:14,color:"#e9d5ff",marginBottom:2}}>يالا Editor</div>
+            <div style={{fontSize:11,color:"rgba(167,139,250,0.6)",fontWeight:700}}>افتح محرر الألعاب ←</div>
+          </div>
+        </motion.button>
       </div>
 
       {/* Stats grid */}
@@ -151,6 +187,27 @@ export default function AdminDashboard() {
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* Quick Editor access at bottom of alerts */}
+          <div style={{marginTop:16,paddingTop:14,borderTop:"1px solid rgba(255,255,255,0.05)"}}>
+            <button
+              onClick={() => router.push("/editor")}
+              style={{
+                width:"100%",
+                display:"flex",alignItems:"center",justifyContent:"center",gap:8,
+                padding:"9px 12px",borderRadius:10,
+                background:"rgba(124,58,237,0.1)",
+                border:"1px dashed rgba(124,58,237,0.3)",
+                color:"#a78bfa",fontSize:12,fontWeight:800,
+                cursor:"pointer",fontFamily:"var(--font-cairo,sans-serif)",
+                transition:"all .15s",
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background="rgba(124,58,237,0.18)"; e.currentTarget.style.borderStyle="solid"; }}
+              onMouseLeave={e => { e.currentTarget.style.background="rgba(124,58,237,0.1)"; e.currentTarget.style.borderStyle="dashed"; }}
+            >
+              🎮 افتح يالا Editor
+            </button>
           </div>
         </motion.div>
       </div>
