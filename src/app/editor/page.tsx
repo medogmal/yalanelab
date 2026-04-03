@@ -1375,7 +1375,7 @@ function NewProjectModal({ onClose }: { onClose: () => void }) {
 // ════════════════════════════════════════════════════════════
 //  MAIN PAGE
 // ════════════════════════════════════════════════════════════
-export default function EditorPage() {
+function EditorContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const store = useEditorStore();
@@ -1524,5 +1524,13 @@ export default function EditorPage() {
         ::-webkit-scrollbar-thumb:hover { background: ${T.borderMd}; }
       `}</style>
     </div>
+  );
+}
+
+export default function EditorPage() {
+  return (
+    <React.Suspense fallback={<div style={{ height: "100dvh", display: "flex", alignItems: "center", justifyContent: "center", background: "#07090f" }}><Loader2 size={32} style={{ color: "#7c3aed", animation: "spin 1s linear infinite" }} /></div>}>
+      <EditorContent />
+    </React.Suspense>
   );
 }
