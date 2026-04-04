@@ -544,9 +544,14 @@ export default function Canvas3D() {
   const playerMeshRef = useRef<THREE.Group | null>(null);
   const keysRef    = useRef<Record<string, boolean>>({});
   const isPlayMode = store.ui.isPlaying;
+  // ref يتقرأ جوه الـ animate loop (بيحل مشكلة stale closure)
+  const isPlayingRef = useRef(false);
   const [playHUD, setPlayHUD] = React.useState({ viewMode: 'third', placingType: null as string|null });
   const raycaster  = useRef(new THREE.Raycaster());
   const groundPlane = useRef(new THREE.Plane(new THREE.Vector3(0,1,0), 0));
+
+  // sync isPlaying → ref كل render
+  isPlayingRef.current = store.ui.isPlaying;
 
   // ── Play Mode: إضافة شخصية اللاعب للـ scene ──────────────────
   useEffect(() => {
@@ -823,7 +828,7 @@ export default function Canvas3D() {
       if (frameCount === 60) console.log('[Canvas3D] 🎬 60 frames rendered (1 second) — render loop working fine');
 
       // ─ Play Mode ─
-      if (store.ui.isPlaying) {
+      if (isPlayingRef.current) {
         updatePlayMode(0.016);
       }
 
@@ -839,15 +844,14 @@ export default function Canvas3D() {
           obj3d.position.y = worldY(gameObj) + 0.3 + Math.sin(t * 2) * 0.18;
         }
 
-        // Characters: animate bones if they have _bones (set by buildHumanoid)
-        // Check directly on the object — no spriteKey dependency
+        // Characters: animate bones
         if ((obj3d as any)._bones) {
-          animateCharacter(obj3d as THREE.Group, t, false); // idle in editor
+          animateCharacter(obj3d as THREE.Group, t, false);
         }
       });
 
       // Player mesh animation in play mode
-      if (store.ui.isPlaying && playerMeshRef.current) {
+      if (isPlayingRef.current && playerMeshRef.current) {
         const ps = playRef.current;
         const moving = Math.abs(ps.vel.x) > 0.2 || Math.abs(ps.vel.z) > 0.2;
         animateCharacter(playerMeshRef.current as THREE.Group, t, moving);
@@ -946,20 +950,28 @@ export default function Canvas3D() {
     const cam   = camRef.current;
     if (!mount || !cam) return;
 
-    const rect = mount.getBoundingClientRect();
+    // استخدم الـ canvas نفسه مش الـ div عشان دقة أفضل
+    const canvas = mount.querySelector('canvas') || mount;
+    const rect = canvas.getBoundingClientRect();
     const ndcX =  ((clientX - rect.left) / rect.width)  * 2 - 1;
     const ndcY = -((clientY - rect.top)  / rect.height) * 2 + 1;
+
     raycaster.current.setFromCamera(new THREE.Vector2(ndcX, ndcY), cam);
     const target = new THREE.Vector3();
+
+    // جرب intersection مع الأرض
     if (!raycaster.current.ray.intersectPlane(groundPlane.current, target)) return;
 
-    // تحويل 3D coords → editor pixel coords
+    // تحويل 3D → editor coords
+    // worldX(edX) = target.x ، worldY(edY) = target.y
+    // target.x = (edX - 960) / 80  =>  edX = target.x * 80 + 960
+    // target.y = (1080 - edY)/80 - 5.5 + 1.0  =>  edY = 1080 - (target.y + 4.5) * 80
     const edX = Math.round(target.x * 80 + 960);
-    const edY = Math.round(1080 - (target.y + 5.5) * 80);
+    const edY = Math.round(1080 - (target.y + 4.5) * 80);
 
-    // حدد النوع: إما المحدد في الـ inspector، أو platform افتراضياً
     const selObj = store.getSelectedObject();
     const objType = selObj?.type || 'platform';
+    console.log('[Click-to-place] 3D target:', target.x.toFixed(2), target.y.toFixed(2), '| editor:', edX, edY, '| type:', objType);
     store.addObjectOfType(objType as any, { x: edX, y: edY });
   }
 
