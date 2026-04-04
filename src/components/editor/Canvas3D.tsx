@@ -37,40 +37,62 @@ function buildHumanoid(spriteKey: string): THREE.Group {
   const g = new THREE.Group();
   const mat = (col: number) => new THREE.MeshLambertMaterial({ color: col });
 
-  // Legs
-  for (const x of [-0.18, 0.18]) {
+  // ── Leg pivots (hip as rotation origin) ──────────────────
+  const leftLegPivot  = new THREE.Group(); leftLegPivot.position.set(-0.18, 0.6, 0);
+  const rightLegPivot = new THREE.Group(); rightLegPivot.position.set( 0.18, 0.6, 0);
+  g.add(leftLegPivot, rightLegPivot);
+  for (const pivot of [leftLegPivot, rightLegPivot]) {
     const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.1, 0.6, 6), mat(c.accent));
-    leg.position.set(x, 0.3, 0); leg.castShadow = true; g.add(leg);
+    leg.position.set(0, -0.3, 0); leg.castShadow = true; pivot.add(leg);
     const boot = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.14, 0.3), mat(0x111827));
-    boot.position.set(x, 0.02, 0.04); g.add(boot);
+    boot.position.set(0, -0.58, 0.04); pivot.add(boot);
   }
-  // Torso
+  // Torso + Belt
   const torso = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.64, 0.32), mat(c.body));
   torso.position.y = 0.92; torso.castShadow = true; g.add(torso);
-  // Belt
   const belt = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.09, 0.34), mat(c.accent));
   belt.position.y = 0.66; g.add(belt);
-  // Arms
-  for (const x of [-0.38, 0.38]) {
+  // ── Arm pivots (shoulder as rotation origin) ───────────────
+  const leftArmPivot  = new THREE.Group(); leftArmPivot.position.set(-0.38, 1.14, 0);
+  const rightArmPivot = new THREE.Group(); rightArmPivot.position.set( 0.38, 1.14, 0);
+  g.add(leftArmPivot, rightArmPivot);
+  for (const [pivot, sign] of [[leftArmPivot, -1], [rightArmPivot, 1]] as [THREE.Group, number][]) {
     const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.09, 0.52, 6), mat(c.body));
-    arm.position.set(x, 0.88, 0); arm.rotation.z = x < 0 ? 0.2 : -0.2; arm.castShadow = true; g.add(arm);
+    arm.position.set(0, -0.26, 0); arm.rotation.z = sign < 0 ? 0.18 : -0.18; arm.castShadow = true; pivot.add(arm);
     const hand = new THREE.Mesh(new THREE.SphereGeometry(0.1, 6, 6), mat(c.head));
-    hand.position.set(x < 0 ? -0.44 : 0.44, 0.64, 0); g.add(hand);
+    hand.position.set(0, -0.52, 0); pivot.add(hand);
   }
   // Neck
   const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.14, 6), mat(c.head));
   neck.position.y = 1.3; g.add(neck);
-  // Head
+  // ── Head pivot ─────────────────────────────────────────────
+  const headPivot = new THREE.Group(); headPivot.position.set(0, 1.59, 0); g.add(headPivot);
   const head = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.44, 0.38), mat(c.head));
-  head.position.y = 1.59; head.castShadow = true; g.add(head);
-  // Eyes
+  head.castShadow = true; headPivot.add(head);
   for (const x of [-0.1, 0.1]) {
     const ew = new THREE.Mesh(new THREE.SphereGeometry(0.055, 5, 5), mat(0xffffff));
-    ew.position.set(x, 1.62, 0.2); g.add(ew);
+    ew.position.set(x, 0.03, 0.2); headPivot.add(ew);
     const ep = new THREE.Mesh(new THREE.SphereGeometry(0.035, 5, 5), mat(0x111827));
-    ep.position.set(x, 1.62, 0.23); g.add(ep);
+    ep.position.set(x, 0.03, 0.23); headPivot.add(ep);
   }
+  // Store bones for animation
+  (g as any)._bones = { leftLeg: leftLegPivot, rightLeg: rightLegPivot, leftArm: leftArmPivot, rightArm: rightArmPivot, torso, head: headPivot };
   return g;
+}
+
+// ── Animate character bones each frame ────────────────────
+function animateCharacter(group: THREE.Group, t: number, isMoving = true) {
+  const b = (group as any)._bones;
+  if (!b) return;
+  const spd = isMoving ? 6.0 : 1.4;
+  const amp = isMoving ? 0.52 : 0.07;
+  const s = Math.sin(t * spd);
+  b.leftLeg.rotation.x  =  s * amp;
+  b.rightLeg.rotation.x = -s * amp;
+  b.leftArm.rotation.x  = -s * amp * 0.65;
+  b.rightArm.rotation.x =  s * amp * 0.65;
+  b.torso.position.y    = 0.92 + (isMoving ? Math.abs(s) * 0.04 : 0);
+  b.head.rotation.y     = Math.sin(t * (isMoving ? spd * 0.5 : 0.7)) * (isMoving ? 0.08 : 0.14);
 }
 
 // ── إضافة هيلمت / قبعة ────────────────────────────────────
@@ -765,13 +787,11 @@ export default function Canvas3D() {
         }
       });
 
-      // تحديث شخصية اللاعب
+      // Update player mesh position & rotation
       if (playerMesh) {
         playerMesh.position.copy(ps.pos);
         playerMesh.position.y -= 1.0;
         playerMesh.rotation.y = ps.yaw + Math.PI;
-        // أنيميشن المشي
-        if (len > 0) playerMesh.rotation.y = ps.yaw + Math.PI + (t * 8 % (Math.PI * 2)) * 0.05;
       }
 
       // تحديث الكاميرا
@@ -805,15 +825,34 @@ export default function Canvas3D() {
         updatePlayMode(0.016);
       }
 
-      // Animate collectibles (rotate + float)
+      // Animate objects: collectibles + characters
       objMapRef.current.forEach((obj3d, id) => {
         const sceneData = store.getActiveScene();
         const gameObj = sceneData?.objects.find(o => o.id === id);
-        if (gameObj?.type === "collectible") {
+        if (!gameObj) return;
+        if (gameObj.type === "collectible") {
           obj3d.rotation.y = t * 1.8;
           obj3d.position.y = worldY(gameObj) + 0.3 + Math.sin(t * 2) * 0.18;
         }
+        // Animate humanoid characters (idle animation in editor)
+        const sk: string = (gameObj as any).spriteKey || "";
+        const isChar = sk in CHAR_COLORS || ["enemy_slime","enemy_skeleton","boss_dragon"].includes(sk);
+        if (isChar && (obj3d as THREE.Group).isGroup) {
+          animateCharacter(obj3d as THREE.Group, t, false); // idle in editor
+        }
+        // In play mode, animate the player mesh separately
+        if (store.ui.isPlaying && playerMeshRef.current && obj3d === playerMeshRef.current) {
+          const ps = playRef.current;
+          const moving = Math.abs(ps.vel.x) > 0.1 || Math.abs(ps.vel.z) > 0.1;
+          animateCharacter(playerMeshRef.current as THREE.Group, t, moving);
+        }
       });
+      // Also animate the player mesh in play mode
+      if (store.ui.isPlaying && playerMeshRef.current) {
+        const ps = playRef.current;
+        const moving = Math.abs(ps.vel.x) > 0.1 || Math.abs(ps.vel.z) > 0.1;
+        animateCharacter(playerMeshRef.current as THREE.Group, t, moving);
+      }
 
       renderer.render(scene, cam);
     }
