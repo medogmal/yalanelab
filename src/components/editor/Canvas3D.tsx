@@ -825,32 +825,29 @@ export default function Canvas3D() {
         updatePlayMode(0.016);
       }
 
-      // Animate objects: collectibles + characters
+      // Animate objects every frame
       objMapRef.current.forEach((obj3d, id) => {
         const sceneData = store.getActiveScene();
         const gameObj = sceneData?.objects.find(o => o.id === id);
         if (!gameObj) return;
+
+        // Collectibles: spin + float
         if (gameObj.type === "collectible") {
           obj3d.rotation.y = t * 1.8;
           obj3d.position.y = worldY(gameObj) + 0.3 + Math.sin(t * 2) * 0.18;
         }
-        // Animate humanoid characters (idle animation in editor)
-        const sk: string = (gameObj as any).spriteKey || "";
-        const isChar = sk in CHAR_COLORS || ["enemy_slime","enemy_skeleton","boss_dragon"].includes(sk);
-        if (isChar && (obj3d as THREE.Group).isGroup) {
+
+        // Characters: animate bones if they have _bones (set by buildHumanoid)
+        // Check directly on the object — no spriteKey dependency
+        if ((obj3d as any)._bones) {
           animateCharacter(obj3d as THREE.Group, t, false); // idle in editor
         }
-        // In play mode, animate the player mesh separately
-        if (store.ui.isPlaying && playerMeshRef.current && obj3d === playerMeshRef.current) {
-          const ps = playRef.current;
-          const moving = Math.abs(ps.vel.x) > 0.1 || Math.abs(ps.vel.z) > 0.1;
-          animateCharacter(playerMeshRef.current as THREE.Group, t, moving);
-        }
       });
-      // Also animate the player mesh in play mode
+
+      // Player mesh animation in play mode
       if (store.ui.isPlaying && playerMeshRef.current) {
         const ps = playRef.current;
-        const moving = Math.abs(ps.vel.x) > 0.1 || Math.abs(ps.vel.z) > 0.1;
+        const moving = Math.abs(ps.vel.x) > 0.2 || Math.abs(ps.vel.z) > 0.2;
         animateCharacter(playerMeshRef.current as THREE.Group, t, moving);
       }
 
