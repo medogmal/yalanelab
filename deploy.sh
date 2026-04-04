@@ -1,119 +1,35 @@
 #!/bin/bash
-# ═══════════════════════════════════════════════════════════
-#  YALANELAB — DEPLOY SCRIPT
-#  Run on VPS: bash deploy.sh
-# ═══════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════
+#  deploy.sh — السحب والتحديث على السيرفر
+#  شغّله على السيرفر بعد ما تعمل git push
+# ═══════════════════════════════════════════════════════
 set -e
 
-REPO="https://github.com/eldomna/yalanel3ap.git"
 APP_DIR="/var/www/yalanelab"
-LOG_DIR="/var/log/yalanelab"
-NODE_MIN="18"
+PM2_APP="yalanelab"
 
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
-log()   { echo -e "${GREEN}[✓]${NC} $1"; }
-warn()  { echo -e "${YELLOW}[!]${NC} $1"; }
-error() { echo -e "${RED}[✗]${NC} $1"; exit 1; }
-
-echo ""
-echo "╔══════════════════════════════════════════╗"
-echo "║   يالا نلعب — Deploy Script v1.0        ║"
-echo "╚══════════════════════════════════════════╝"
-echo ""
-
-# ── 1. System deps ──────────────────────────────────────
-log "تحديث الـ apt..."
-apt-get update -qq
-
-# Node.js
-if ! command -v node &>/dev/null; then
-  warn "Node.js مش موجود — جاري التثبيت..."
-  curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-  apt-get install -y nodejs
-fi
-
-NODE_VER=$(node -v | sed 's/v//' | cut -d. -f1)
-if [ "$NODE_VER" -lt "$NODE_MIN" ]; then
-  warn "Node.js $NODE_VER قديم — جاري الترقية..."
-  curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-  apt-get install -y nodejs
-fi
-log "Node.js $(node -v)"
-
-# Git
-if ! command -v git &>/dev/null; then
-  apt-get install -y git
-fi
-
-# PM2
-if ! command -v pm2 &>/dev/null; then
-  warn "PM2 مش موجود — جاري التثبيت..."
-  npm install -g pm2
-fi
-log "PM2 $(pm2 -v)"
-
-# ── 2. App directory ─────────────────────────────────────
-mkdir -p "$APP_DIR" "$LOG_DIR"
-
-if [ -d "$APP_DIR/.git" ]; then
-  log "تحديث الكود من GitHub..."
-  cd "$APP_DIR"
-  git fetch origin
-  git reset --hard origin/main
-else
-  log "Clone من GitHub..."
-  git clone "$REPO" "$APP_DIR"
-  cd "$APP_DIR"
-fi
-
-# ── 3. .env ──────────────────────────────────────────────
-if [ ! -f "$APP_DIR/.env" ]; then
-  warn ".env مش موجود — جاري إنشاؤه من الـ example..."
-  cp "$APP_DIR/.env.production.example" "$APP_DIR/.env"
-  
-  # Generate random secret
-  SECRET=$(openssl rand -hex 32)
-  sed -i "s/CHANGE_THIS_TO_RANDOM_SECRET_64_CHARS/$SECRET/" "$APP_DIR/.env"
-  
-  warn "تأكد من تعديل الـ .env على: $APP_DIR/.env"
-fi
-
-# ── 4. Install deps ──────────────────────────────────────
-log "تثبيت الـ dependencies..."
+echo "🚀 بدء التحديث..."
 cd "$APP_DIR"
-npm install --production=false 2>&1 | tail -5
 
-# ── 5. Prisma ────────────────────────────────────────────
-log "إعداد قاعدة البيانات..."
+# 1. سحب أحدث كود
+echo "📥 سحب التحديثات من GitHub..."
+git pull origin main
+
+# 2. تثبيت الـ packages الجديدة
+echo "📦 تثبيت الـ packages..."
+npm install --production=false
+
+# 3. Prisma generate
+echo "🗄️ تحديث Prisma..."
 npx prisma generate
-npx prisma migrate deploy 2>/dev/null || npx prisma db push --accept-data-loss
 
-# ── 6. Build ─────────────────────────────────────────────
-log "Build الـ Next.js..."
-npm run build 2>&1 | tail -10
+# 4. Build
+echo "🔨 بناء المشروع..."
+npm run build
 
-# ── 7. PM2 ───────────────────────────────────────────────
-log "تشغيل التطبيق بـ PM2..."
-pm2 stop yalanelab 2>/dev/null || true
-pm2 delete yalanelab 2>/dev/null || true
-pm2 start ecosystem.config.js
-pm2 save
-pm2 startup 2>/dev/null | tail -1 | bash 2>/dev/null || true
+# 5. Restart
+echo "♻️ إعادة تشغيل السيرفر..."
+pm2 restart "$PM2_APP" || pm2 start npm --name "$PM2_APP" -- start
 
-# ── 8. Firewall ──────────────────────────────────────────
-if command -v ufw &>/dev/null; then
-  ufw allow 3000/tcp 2>/dev/null || true
-  log "Port 3000 مفتوح"
-fi
-
-# ── Done ─────────────────────────────────────────────────
-echo ""
-echo "╔══════════════════════════════════════════════════════╗"
-echo "║   ✅ يالا نلعب شغال على السيرفر!                   ║"
-echo "║                                                      ║"
-echo "║   🌐 http://206.183.130.163:3000                    ║"
-echo "║   📋 pm2 logs yalanelab                             ║"
-echo "║   🔄 pm2 restart yalanelab                          ║"
-echo "╚══════════════════════════════════════════════════════╝"
-echo ""
+echo "✅ تم التحديث بنجاح!"
 pm2 status

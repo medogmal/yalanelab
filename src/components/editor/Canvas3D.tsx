@@ -606,39 +606,47 @@ export default function Canvas3D() {
   }
 
   // ── Sync game objects to 3D scene ────────────────────────
-  const scene = sceneRef.current;
   const activeScene = store.getActiveScene();
+  const sceneObjects = activeScene?.objects ?? [];
+  const selectedId   = store.ui.selectedObjectId;
+  const sceneId      = store.ui.selectedSceneId;
 
   useEffect(() => {
-    if (!scene || !activeScene) return;
-    const currentIds = new Set(activeScene.objects.map(o => o.id));
+    const scene = sceneRef.current;
+    if (!scene) return;
 
-    // Remove deleted
+    const currentIds = new Set(sceneObjects.map((o: GameObject) => o.id));
+
+    // Remove deleted objects
     objMapRef.current.forEach((obj3d, id) => {
-      if (!currentIds.has(id)) { scene.remove(obj3d); objMapRef.current.delete(id); }
+      if (!currentIds.has(id)) {
+        scene.remove(obj3d);
+        objMapRef.current.delete(id);
+      }
     });
 
-    // Add / update
-    for (const obj of activeScene.objects) {
+    // Add new / update existing
+    for (const obj of sceneObjects) {
       if (!objMapRef.current.has(obj.id)) {
+        // Build new 3D object
         const obj3d = buildObject3D(obj);
         obj3d.position.set(worldX(obj), worldY(obj), 0);
         obj3d.castShadow = true;
-        // Selection ring
         (obj3d as any)._selRing = addSelectionRing(obj3d);
         scene.add(obj3d);
         objMapRef.current.set(obj.id, obj3d);
       } else {
+        // Update position for existing
         const obj3d = objMapRef.current.get(obj.id)!;
         if (obj.type !== "collectible") {
           obj3d.position.set(worldX(obj), worldY(obj), 0);
         }
-        // Selection highlight
+        // Selection ring visibility
         const ring = (obj3d as any)._selRing as THREE.Mesh | undefined;
-        if (ring) ring.visible = store.ui.selectedObjectId === obj.id;
+        if (ring) ring.visible = selectedId === obj.id;
       }
     }
-  });
+  }, [sceneObjects, sceneObjects.length, selectedId, sceneId]);
 
   return (
     <div
@@ -665,10 +673,20 @@ export default function Canvas3D() {
 }
 
 // ── تحويل إحداثيات الـ editor (pixels) → 3D world ────────────
-function worldX(obj: GameObject) { return (obj.x - 540) / 60; }
+// الـ scene افتراضياً 1920×1080 — المركز (960, 540)
+// بنقسم على 80 عشان تكون الأحجام معقولة في الـ 3D
+function worldX(obj: GameObject) {
+  return (obj.x - 960) / 80;
+}
 function worldY(obj: GameObject) {
-  if (obj.type === "platform" || obj.type === "wall") return -(obj.y - 400) / 60 + 0.12;
-  return -(obj.y - 400) / 60 + 1.0;
+  // في الـ 3D، Y موجب = فوق؛ في الـ editor Y موجب = تحت
+  // الأرض في الـ 3D عند y=0، فاحنا نحسب من أسفل الـ scene
+  const groundY3D = 0;
+  const sceneH = 1080;
+  // كل 80px = 1 unit في 3D
+  const y3d = (sceneH - obj.y) / 80 - 5.5;
+  if (obj.type === "platform" || obj.type === "wall") return y3d + 0.12;
+  return y3d + 1.0;
 }
 
 // ── حلقة تحديد (selection ring) ──────────────────────────────
