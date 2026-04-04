@@ -1036,31 +1036,3 @@ function addSelectionRing(obj3d: THREE.Object3D): THREE.Mesh {
   ring.rotation.x = -Math.PI / 2; ring.position.y = -0.02; ring.visible = false;
   obj3d.add(ring); return ring;
 }
-// ── تحويل إحداثيات الـ editor (pixels) → 3D world ────────────
-// الـ scene افتراضياً 1920×1080 — المركز (960, 540)
-// بنقسم على 80 عشان تكون الأحجام معقولة في الـ 3D
-function worldX(obj: GameObject) {
-  return (obj.x - 960) / 80;
-}
-function worldY(obj: GameObject) {
-  // scene height = 1080px ، الـ origin (y=440) = 2.5 فوق الأرض
-  // كل 80px = 1 unit في الـ 3D
-  const sceneH = 1080;
-  const y3d = (sceneH - obj.y) / 80 - 5.5;
-  if (obj.type === "platform" || obj.type === "wall") return y3d + 0.12;
-  if (obj.type === "collectible") return y3d + 1.5;
-  return y3d + 1.0;
-}
-
-// ── حلقة تحديد (selection ring) ──────────────────────────────
-function addSelectionRing(obj3d: THREE.Object3D): THREE.Mesh {
-  const ring = new THREE.Mesh(
-    new THREE.RingGeometry(0.55, 0.72, 16),
-    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, transparent: true, opacity: 0.85 })
-  );
-  ring.rotation.x = -Math.PI / 2;
-  ring.position.y = -0.02;
-  ring.visible = false;
-  obj3d.add(ring);
-  return ring;
-}
