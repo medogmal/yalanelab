@@ -421,10 +421,10 @@ export const useEditorStore = create<EditorStore>()(
       },
 
       addObjectOfType: (type, extras = {}) => {
-        // ── وسط الـ 3D scene تماماً ──
-        // worldX(960) = 0, worldY(440) ≈ 2.5 فوق الأرض
+        // لو في extras فيها x و y (من click-to-place) استخدمهم
+        // لو مفيش، حط في وسط الـ scene بالظبط
         const obj = createGameObject(type, {
-          x: 960 + (Math.random() - 0.5) * 200,  // scatter بسيط عشان المحاذاة
+          x: 960,
           y: 440,
           ...extras,
         });

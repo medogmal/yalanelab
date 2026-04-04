@@ -933,17 +933,22 @@ export default function Canvas3D() {
     const mount = mountRef.current;
     const cam   = camRef.current;
     if (!mount || !cam) return;
-    if (store.ui.activeTool !== 'add') return;
+
     const rect = mount.getBoundingClientRect();
     const ndcX =  ((clientX - rect.left) / rect.width)  * 2 - 1;
     const ndcY = -((clientY - rect.top)  / rect.height) * 2 + 1;
     raycaster.current.setFromCamera(new THREE.Vector2(ndcX, ndcY), cam);
     const target = new THREE.Vector3();
     if (!raycaster.current.ray.intersectPlane(groundPlane.current, target)) return;
+
+    // تحويل 3D coords → editor pixel coords
     const edX = Math.round(target.x * 80 + 960);
-    const edY = Math.round(1080 - (target.y + 5.5 - 1.0) * 80);
+    const edY = Math.round(1080 - (target.y + 5.5) * 80);
+
+    // حدد النوع: إما المحدد في الـ inspector، أو platform افتراضياً
     const selObj = store.getSelectedObject();
-    store.addObjectOfType((selObj?.type || 'platform') as any, { x: edX, y: edY });
+    const objType = selObj?.type || 'platform';
+    store.addObjectOfType(objType as any, { x: edX, y: edY });
   }
 
   function onMouseDown(e: React.MouseEvent) {
@@ -970,7 +975,10 @@ export default function Canvas3D() {
     isDragging.current = false;
     const dx = Math.abs(e.clientX - mouseDownPos.current.x);
     const dy = Math.abs(e.clientY - mouseDownPos.current.y);
-    if (dx < 5 && dy < 5 && e.button === 0) handleEditorClick(e.clientX, e.clientY);
+    // كليك بسيط (مش drag) + زر يسار + tool = add
+    if (dx < 5 && dy < 5 && e.button === 0 && store.ui.activeTool === 'add') {
+      handleEditorClick(e.clientX, e.clientY);
+    }
   }
 
   function onWheel(e: React.WheelEvent) {
@@ -992,7 +1000,9 @@ export default function Canvas3D() {
         <div style={{ position:"absolute", bottom:12, left:"50%", transform:"translateX(-50%)",
           background:"rgba(0,0,0,0.6)", borderRadius:20, padding:"4px 14px",
           fontSize:11, color:"rgba(255,255,255,0.5)", pointerEvents:"none", fontFamily:"var(--font-cairo)" }}>
-          {store.ui.activeTool === 'add' ? 'كليك على الأرض لوضع الكائن بالمكان المحدد' : 'يسار: تدوير | يمين: تحريك | عجلة: zoom'}
+          {store.ui.activeTool === 'add'
+            ? `كليك على أي مكان في الـ 3D لوضع: ${store.getSelectedObject()?.type || 'platform'}`
+            : 'يسار: تدوير | يمين: تحريك | عجلة: zoom — اختار ➕ لوضع كائن بالمكان'}
         </div>
       )}
       {isPlayMode && (
