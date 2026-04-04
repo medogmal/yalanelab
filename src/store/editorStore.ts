@@ -80,6 +80,13 @@ export function createGameObject(
   overrides: Partial<GameObject> = {}
 ): GameObject {
   const id = `obj_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+
+  // ── الموقع الافتراضي: وسط الـ scene (960, 440) ──
+  // worldX = (960-960)/80 = 0 → وسط الـ canvas
+  // worldY = (1080-440)/80 - 5.5 = 8 - 5.5 = 2.5 → فوق الأرض
+  const defaultX = 960;
+  const defaultY = 440;
+
   return {
     id,
     name: labelOf(type),
@@ -90,8 +97,8 @@ export function createGameObject(
     parentId: null,
     childIds: [],
     type,
-    x: 200 + Math.random() * 400,
-    y: 200 + Math.random() * 200,
+    x: defaultX,
+    y: defaultY,
     width: defaultWidth(type),
     height: defaultHeight(type),
     rotation: 0,
@@ -121,18 +128,18 @@ function tagOf(t: GameObject["type"]): string {
   return "Untagged";
 }
 function defaultWidth(t: GameObject["type"]): number {
-  if (t === "platform") return 200;
-  if (t === "wall") return 32;
+  if (t === "platform") return 320;
+  if (t === "wall") return 48;
   if (t === "text") return 200;
-  if (t === "trigger") return 80;
-  return 64;
+  if (t === "trigger") return 120;
+  return 96;
 }
 function defaultHeight(t: GameObject["type"]): number {
-  if (t === "platform") return 24;
-  if (t === "wall") return 200;
-  if (t === "text") return 32;
-  if (t === "trigger") return 80;
-  return 64;
+  if (t === "platform") return 32;
+  if (t === "wall") return 320;
+  if (t === "text") return 48;
+  if (t === "trigger") return 120;
+  return 96;
 }
 function defaultColor(t: GameObject["type"]): import("@/types/editor").GameColor {
   const m: Record<string, [number,number,number]> = {
@@ -149,18 +156,18 @@ function defaultComponents(t: GameObject["type"]): GameComponent[] {
   const tr = makeTransform();
   switch (t) {
     case "player":
-      return [tr, makeSpriteRenderer(), makeRigidbody(), makeBoxCollider(0.64,0.64), makePlayerController(), makeHealthSystem(100)];
+      return [tr, makeSpriteRenderer(), makeRigidbody(), makeBoxCollider(0.96,0.96), makePlayerController(), makeHealthSystem(100)];
     case "enemy":
-      return [tr, makeSpriteRenderer(), makeRigidbody(), makeBoxCollider(0.64,0.64), makeEnemyAI(), makeHealthSystem(50)];
+      return [tr, makeSpriteRenderer(), makeRigidbody(), makeBoxCollider(0.96,0.96), makeEnemyAI(), makeHealthSystem(50)];
     case "platform":
     case "wall":
-      return [tr, makeSpriteRenderer(), makeBoxCollider(2, 0.25)];
+      return [tr, makeSpriteRenderer(), makeBoxCollider(4, 0.4)];
     case "trigger":
-      return [tr, { ...makeBoxCollider(0.8,0.8), isTrigger: true } as GameComponent];
+      return [tr, { ...makeBoxCollider(1.2,1.2), isTrigger: true } as GameComponent];
     case "collectible":
-      return [tr, makeSpriteRenderer(), { type: "CircleCollider2D" as const, enabled: true, isTrigger: true, offset:{x:0,y:0}, radius:0.3, material:{friction:0,bounciness:0} }];
+      return [tr, makeSpriteRenderer(), { type: "CircleCollider2D" as const, enabled: true, isTrigger: true, offset:{x:0,y:0}, radius:0.5, material:{friction:0,bounciness:0} }];
     case "npc":
-      return [tr, makeSpriteRenderer(), makeBoxCollider(0.64,0.64)];
+      return [tr, makeSpriteRenderer(), makeBoxCollider(0.96,0.96)];
     default:
       return [tr];
   }
@@ -414,11 +421,11 @@ export const useEditorStore = create<EditorStore>()(
       },
 
       addObjectOfType: (type, extras = {}) => {
-        const scene = get().getActiveScene();
-        if (!scene) return;
+        // ── وسط الـ 3D scene تماماً ──
+        // worldX(960) = 0, worldY(440) ≈ 2.5 فوق الأرض
         const obj = createGameObject(type, {
-          x: scene.width * 0.3 + Math.random() * scene.width * 0.4,
-          y: scene.height * 0.4,
+          x: 960 + (Math.random() - 0.5) * 200,  // scatter بسيط عشان المحاذاة
+          y: 440,
           ...extras,
         });
         get().addObject(obj);
@@ -466,7 +473,7 @@ export const useEditorStore = create<EditorStore>()(
         const scene = get().getActiveScene();
         const orig = scene?.objects.find(o => o.id === id);
         if (!orig) return;
-        get().addObject({ ...orig, id: `obj_${Date.now()}`, name: `${orig.name} (نسخة)`, x: orig.x + 32, y: orig.y + 32 });
+        get().addObject({ ...orig, id: `obj_${Date.now()}`, name: `${orig.name} (نسخة)`, x: orig.x + 80, y: orig.y + 80 });
       },
 
       duplicateObjects: (ids) => {
@@ -474,7 +481,7 @@ export const useEditorStore = create<EditorStore>()(
         if (!scene) return;
         ids.forEach(id => {
           const orig = scene.objects.find(o => o.id === id);
-          if (orig) get().addObject({ ...orig, id: `obj_${Date.now()}`, name: `${orig.name} (نسخة)`, x: orig.x + 32, y: orig.y + 32 });
+          if (orig) get().addObject({ ...orig, id: `obj_${Date.now()}`, name: `${orig.name} (نسخة)`, x: orig.x + 80, y: orig.y + 80 });
         });
       },
 

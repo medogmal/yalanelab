@@ -627,22 +627,31 @@ export default function Canvas3D() {
 
     // Add new / update existing
     for (const obj of sceneObjects) {
-      if (!objMapRef.current.has(obj.id)) {
-        // Build new 3D object
+      const spriteKey: string = (obj as any).spriteKey || "";
+      const cacheKey = spriteKey || obj.type;
+      const existing = objMapRef.current.get(obj.id);
+      const existingKey: string = existing ? ((existing as any)._cacheKey ?? "") : "";
+
+      if (!existing || existingKey !== cacheKey) {
+        // احذف القديم لو موجود
+        if (existing) {
+          scene.remove(existing);
+          objMapRef.current.delete(obj.id);
+        }
+        // بني جديد
         const obj3d = buildObject3D(obj);
         obj3d.position.set(worldX(obj), worldY(obj), 0);
         obj3d.castShadow = true;
         (obj3d as any)._selRing = addSelectionRing(obj3d);
+        (obj3d as any)._cacheKey = cacheKey;
         scene.add(obj3d);
         objMapRef.current.set(obj.id, obj3d);
       } else {
-        // Update position for existing
-        const obj3d = objMapRef.current.get(obj.id)!;
+        // تحديث موقع فقط
         if (obj.type !== "collectible") {
-          obj3d.position.set(worldX(obj), worldY(obj), 0);
+          existing.position.set(worldX(obj), worldY(obj), 0);
         }
-        // Selection ring visibility
-        const ring = (obj3d as any)._selRing as THREE.Mesh | undefined;
+        const ring = (existing as any)._selRing as THREE.Mesh | undefined;
         if (ring) ring.visible = selectedId === obj.id;
       }
     }
@@ -679,13 +688,12 @@ function worldX(obj: GameObject) {
   return (obj.x - 960) / 80;
 }
 function worldY(obj: GameObject) {
-  // في الـ 3D، Y موجب = فوق؛ في الـ editor Y موجب = تحت
-  // الأرض في الـ 3D عند y=0، فاحنا نحسب من أسفل الـ scene
-  const groundY3D = 0;
+  // scene height = 1080px ، الـ origin (y=440) = 2.5 فوق الأرض
+  // كل 80px = 1 unit في الـ 3D
   const sceneH = 1080;
-  // كل 80px = 1 unit في 3D
   const y3d = (sceneH - obj.y) / 80 - 5.5;
   if (obj.type === "platform" || obj.type === "wall") return y3d + 0.12;
+  if (obj.type === "collectible") return y3d + 1.5;
   return y3d + 1.0;
 }
 
