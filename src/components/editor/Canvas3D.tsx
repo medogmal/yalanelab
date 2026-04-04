@@ -507,25 +507,39 @@ export default function Canvas3D() {
   useEffect(() => {
     const mount = mountRef.current; if (!mount) return;
 
+    console.log('[Canvas3D] 🚀 Initializing Three.js...');
+    console.log('[Canvas3D] Mount size:', mount.clientWidth, 'x', mount.clientHeight);
+    console.log('[Canvas3D] THREE version:', THREE.REVISION);
+
     // Scene
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0a0f1e);
     scene.fog = new THREE.Fog(0x0a0f1e, 40, 90);
     sceneRef.current = scene;
+    console.log('[Canvas3D] ✅ Scene created');
 
     // Camera
     const cam = new THREE.PerspectiveCamera(52, mount.clientWidth / mount.clientHeight, 0.1, 200);
     camRef.current = cam;
     updateCamera();
+    console.log('[Canvas3D] ✅ Camera created');
 
     // Renderer
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      console.log('[Canvas3D] ✅ WebGLRenderer created');
+    } catch (err) {
+      console.error('[Canvas3D] ❌ WebGL NOT supported or failed:', err);
+      return;
+    }
     renderer.setSize(mount.clientWidth, mount.clientHeight);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     mount.appendChild(renderer.domElement);
     rendRef.current = renderer;
+    console.log('[Canvas3D] ✅ Renderer appended to DOM');
 
     // Lights
     scene.add(new THREE.AmbientLight(0x445577, 0.7));
@@ -539,14 +553,19 @@ export default function Canvas3D() {
     fill.position.set(-8, 6, -8);
     scene.add(fill);
 
-    buildSky(scene);
-    buildEnvironment(scene);
+    console.log('[Canvas3D] Building sky and environment...');
+    try { buildSky(scene); console.log('[Canvas3D] ✅ Sky built'); } catch(e) { console.error('[Canvas3D] ❌ Sky error:', e); }
+    try { buildEnvironment(scene); console.log('[Canvas3D] ✅ Environment built'); } catch(e) { console.error('[Canvas3D] ❌ Environment error:', e); }
 
     // Animate
     let t = 0;
+    let frameCount = 0;
     function animate() {
       frameRef.current = requestAnimationFrame(animate);
       t += 0.016;
+      frameCount++;
+      if (frameCount === 1) console.log('[Canvas3D] 🎬 First frame rendered!');
+      if (frameCount === 60) console.log('[Canvas3D] 🎬 60 frames rendered (1 second) — render loop working fine');
 
       // Animate collectibles (rotate + float)
       objMapRef.current.forEach((obj3d, id) => {
@@ -572,10 +591,11 @@ export default function Canvas3D() {
     window.addEventListener("resize", onResize);
 
     return () => {
+      console.log('[Canvas3D] 🧹 Cleanup');
       window.removeEventListener("resize", onResize);
       cancelAnimationFrame(frameRef.current);
       renderer.dispose();
-      mount.removeChild(renderer.domElement);
+      if (mount.contains(renderer.domElement)) mount.removeChild(renderer.domElement);
     };
   }, []);
 
@@ -625,6 +645,7 @@ export default function Canvas3D() {
       }
     });
 
+    console.log('[Canvas3D] 🔄 Syncing', sceneObjects.length, 'objects to 3D scene');
     // Add new / update existing
     for (const obj of sceneObjects) {
       const spriteKey: string = (obj as any).spriteKey || "";
@@ -639,13 +660,21 @@ export default function Canvas3D() {
           objMapRef.current.delete(obj.id);
         }
         // بني جديد
-        const obj3d = buildObject3D(obj);
+        console.log('[Canvas3D] ➕ Adding object:', obj.name, '| type:', obj.type, '| spriteKey:', (obj as any).spriteKey || 'none', '| pos:', worldX(obj).toFixed(2), worldY(obj).toFixed(2));
+        let obj3d: THREE.Object3D;
+        try {
+          obj3d = buildObject3D(obj);
+        } catch(err) {
+          console.error('[Canvas3D] ❌ Failed to build object:', obj.name, err);
+          continue;
+        }
         obj3d.position.set(worldX(obj), worldY(obj), 0);
         obj3d.castShadow = true;
         (obj3d as any)._selRing = addSelectionRing(obj3d);
         (obj3d as any)._cacheKey = cacheKey;
         scene.add(obj3d);
         objMapRef.current.set(obj.id, obj3d);
+        console.log('[Canvas3D] ✅ Object added to scene:', obj.name);
       } else {
         // تحديث موقع فقط
         if (obj.type !== "collectible") {
