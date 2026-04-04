@@ -480,6 +480,20 @@ function addCloud(scene: THREE.Scene, x: number, y: number, z: number) {
   }
 }
 
+// ══════════════════════════════════════════════════════════
+//  PLAY MODE — شخصية اللاعب + فيزياء + كاميرا FPS/TPS
+// ══════════════════════════════════════════════════════════
+interface PlayState {
+  pos: THREE.Vector3;        // موقع اللاعب
+  vel: THREE.Vector3;        // السرعة
+  yaw: number;               // دوران Y (ماوس)
+  pitch: number;             // دوران X
+  onGround: boolean;
+  viewMode: 'third' | 'first';
+  placingType: string | null; // النوع الي هيتحط لما يضغط E
+  previewMesh: THREE.Object3D | null;
+}
+
 // ── React Component ──────────────────────────────────────
 export default function Canvas3D() {
   const mountRef  = useRef<HTMLDivElement>(null);
@@ -492,6 +506,117 @@ export default function Canvas3D() {
   const lastMouse  = useRef({ x: 0, y: 0, btn: 0 });
   const camState   = useRef({ theta: 0.5, phi: 1.05, radius: 16, tx: 0, ty: 1, tz: 0 });
   const store = useEditorStore();
+
+  // ── Play Mode refs ────────────────────────────────────
+  const playRef    = useRef<PlayState>({
+    pos: new THREE.Vector3(0, 1.5, 5),
+    vel: new THREE.Vector3(),
+    yaw: 0, pitch: 0,
+    onGround: false,
+    viewMode: 'third',
+    placingType: null,
+    previewMesh: null,
+  });
+  const playerMeshRef = useRef<THREE.Group | null>(null);
+  const keysRef    = useRef<Record<string, boolean>>({});
+  const isPlayMode = store.ui.isPlaying;
+  const [playHUD, setPlayHUD] = React.useState({ viewMode: 'third', placingType: null as string|null });
+  const raycaster  = useRef(new THREE.Raycaster());
+  const groundPlane = useRef(new THREE.Plane(new THREE.Vector3(0,1,0), 0));
+
+  // ── Play Mode: إضافة شخصية اللاعب للـ scene ──────────────────
+  useEffect(() => {
+    const scene = sceneRef.current;
+    if (!scene) return;
+
+    if (isPlayMode) {
+      // ابدأ من spawn point لو في الـ scene
+      const activeScene = store.getActiveScene();
+      const spawnObj = activeScene?.objects.find(o => o.type === 'spawn');
+      if (spawnObj) {
+        playRef.current.pos.set(worldX(spawnObj), worldY(spawnObj) + 0.5, 0);
+      } else {
+        playRef.current.pos.set(0, 2, 5);
+      }
+      playRef.current.vel.set(0,0,0);
+      playRef.current.yaw = 0;
+      playRef.current.pitch = 0;
+      playRef.current.onGround = false;
+
+      // بني شخصية اللاعب
+      const playerGroup = buildHumanoid('hero_warrior');
+      addHeadgear(playerGroup, 'hero_warrior');
+      addWeapon(playerGroup, 'hero_warrior');
+      playerGroup.position.copy(playRef.current.pos);
+      scene.add(playerGroup);
+      playerMeshRef.current = playerGroup;
+
+      // أخفي شخصية اللاعب من الـ hierarchy (عشان متتضاعفش)
+      const playerObjId = activeScene?.objects.find(o => o.type === 'player')?.id;
+      if (playerObjId) {
+        const mesh3d = objMapRef.current.get(playerObjId);
+        if (mesh3d) mesh3d.visible = false;
+      }
+
+      // Keyboard
+      const onKeyDown = (e: KeyboardEvent) => {
+        keysRef.current[e.code] = true;
+        // V = toggle view
+        if (e.code === 'KeyV') {
+          playRef.current.viewMode = playRef.current.viewMode === 'third' ? 'first' : 'third';
+          setPlayHUD(h => ({ ...h, viewMode: playRef.current.viewMode }));
+          if (playerMeshRef.current) playerMeshRef.current.visible = playRef.current.viewMode === 'third';
+        }
+        // E = place selected object type
+        if (e.code === 'KeyE') {
+          const ps = playRef.current;
+          const cam = camRef.current;
+          if (!cam) return;
+          // تحديد مكان وضع الـ object (2 وحدة قدام اللاعب)
+          const forward = new THREE.Vector3();
+          cam.getWorldDirection(forward);
+          forward.y = 0; forward.normalize();
+          const placePos = ps.pos.clone().addScaledVector(forward, 2);
+          placePos.y = 0;
+
+          const placingType = ps.placingType || store.ui.activeTool === 'add'
+            ? (store.getActiveScene()?.objects.find(o => o.id === store.ui.selectedObjectId)?.type || 'platform')
+            : 'platform';
+
+          // تحويل 3D → editor coords
+          const edX = Math.round(placePos.x * 80 + 960);
+          const edY = Math.round(1080 - (placePos.y + 5.5 - 1.0) * 80);
+          store.addObjectOfType(placingType as any, { x: edX, y: edY });
+        }
+      };
+      const onKeyUp = (e: KeyboardEvent) => { keysRef.current[e.code] = false; };
+      window.addEventListener('keydown', onKeyDown);
+      window.addEventListener('keyup', onKeyUp);
+
+      return () => {
+        window.removeEventListener('keydown', onKeyDown);
+        window.removeEventListener('keyup', onKeyUp);
+        if (playerMeshRef.current) {
+          scene.remove(playerMeshRef.current);
+          playerMeshRef.current = null;
+        }
+        // أظهر شخصية اللاعب تاني
+        if (playerObjId) {
+          const mesh3d = objMapRef.current.get(playerObjId);
+          if (mesh3d) mesh3d.visible = true;
+        }
+        keysRef.current = {};
+      };
+    }
+  }, [isPlayMode]);
+
+  // ── Play Mode: ماوس للدوران FPS ──────────────────────
+  const onPlayMouseMove = React.useCallback((e: MouseEvent) => {
+    if (!isPlayMode) return;
+    const ps = playRef.current;
+    ps.yaw   -= e.movementX * 0.002;
+    ps.pitch  = Math.max(-0.8, Math.min(0.8, ps.pitch - e.movementY * 0.002));
+  }, [isPlayMode]);
 
   function updateCamera() {
     const cam = camRef.current; if (!cam) return;
@@ -569,12 +694,116 @@ export default function Canvas3D() {
     // Animate
     let t = 0;
     let frameCount = 0;
+    const GRAVITY = -18;
+    const GROUND_Y = 0.0; // الأرض
+
+    function updatePlayMode(dt: number) {
+      const ps = playRef.current;
+      const cam = camRef.current;
+      const playerMesh = playerMeshRef.current;
+      if (!cam) return;
+
+      const keys = keysRef.current;
+      const speed = 6;
+
+      // حساب اتجاه الحركة بناءً على الـ yaw
+      const sinY = Math.sin(ps.yaw);
+      const cosY = Math.cos(ps.yaw);
+      let moveX = 0, moveZ = 0;
+      if (keys['KeyW'] || keys['ArrowUp'])    { moveX += sinY; moveZ += cosY; }
+      if (keys['KeyS'] || keys['ArrowDown'])  { moveX -= sinY; moveZ -= cosY; }
+      if (keys['KeyA'] || keys['ArrowLeft'])  { moveX += cosY; moveZ -= sinY; }
+      if (keys['KeyD'] || keys['ArrowRight']) { moveX -= cosY; moveZ += sinY; }
+
+      const len = Math.sqrt(moveX*moveX + moveZ*moveZ);
+      if (len > 0) { moveX /= len; moveZ /= len; }
+
+      ps.vel.x = moveX * speed;
+      ps.vel.z = moveZ * speed;
+
+      // جاذبية
+      if (!ps.onGround) ps.vel.y += GRAVITY * dt;
+
+      // قفز
+      if ((keys['Space'] || keys['KeyQ']) && ps.onGround) {
+        ps.vel.y = 8;
+        ps.onGround = false;
+      }
+
+      // تحديث الموقع
+      ps.pos.x += ps.vel.x * dt;
+      ps.pos.y += ps.vel.y * dt;
+      ps.pos.z += ps.vel.z * dt;
+
+      // صدام بسيط مع الارض
+      if (ps.pos.y <= GROUND_Y + 1.0) {
+        ps.pos.y = GROUND_Y + 1.0;
+        ps.vel.y = 0;
+        ps.onGround = true;
+      } else {
+        ps.onGround = false;
+      }
+
+      // صدام مبسط مع الـ platforms
+      objMapRef.current.forEach((obj3d, id) => {
+        const sceneData = store.getActiveScene();
+        const gameObj = sceneData?.objects.find(o => o.id === id);
+        if (!gameObj || (gameObj.type !== 'platform' && gameObj.type !== 'wall')) return;
+        const px = worldX(gameObj), py = worldY(gameObj);
+        const hw = Math.max(0.3, gameObj.width / 120);
+        const hh = 0.25;
+        if (
+          Math.abs(ps.pos.x - px) < hw + 0.4 &&
+          Math.abs(ps.pos.z)       < 2 &&
+          ps.pos.y - 1.0 < py + hh &&
+          ps.pos.y - 1.0 > py - hh * 3 &&
+          ps.vel.y <= 0
+        ) {
+          ps.pos.y = py + hh + 1.0;
+          ps.vel.y = 0;
+          ps.onGround = true;
+        }
+      });
+
+      // تحديث شخصية اللاعب
+      if (playerMesh) {
+        playerMesh.position.copy(ps.pos);
+        playerMesh.position.y -= 1.0;
+        playerMesh.rotation.y = ps.yaw + Math.PI;
+        // أنيميشن المشي
+        if (len > 0) playerMesh.rotation.y = ps.yaw + Math.PI + (t * 8 % (Math.PI * 2)) * 0.05;
+      }
+
+      // تحديث الكاميرا
+      if (ps.viewMode === 'first') {
+        // FPS: الكاميرا من رأس الشخصية
+        cam.position.set(ps.pos.x, ps.pos.y + 0.3, ps.pos.z);
+        cam.rotation.order = 'YXZ';
+        cam.rotation.y = ps.yaw;
+        cam.rotation.x = ps.pitch;
+      } else {
+        // TPS: كاميرا من ورا الشخصية
+        const dist = 5, heightOff = 2.5;
+        const tx = ps.pos.x - Math.sin(ps.yaw) * dist;
+        const ty = ps.pos.y + heightOff;
+        const tz = ps.pos.z - Math.cos(ps.yaw) * dist;
+        cam.position.lerp(new THREE.Vector3(tx, ty, tz), 0.12);
+        const lookAt = new THREE.Vector3(ps.pos.x, ps.pos.y + 1, ps.pos.z);
+        cam.lookAt(lookAt);
+      }
+    }
+
     function animate() {
       frameRef.current = requestAnimationFrame(animate);
       t += 0.016;
       frameCount++;
       if (frameCount === 1) console.log('[Canvas3D] 🎬 First frame rendered!');
       if (frameCount === 60) console.log('[Canvas3D] 🎬 60 frames rendered (1 second) — render loop working fine');
+
+      // ─ Play Mode ─
+      if (store.ui.isPlaying) {
+        updatePlayMode(0.016);
+      }
 
       // Animate collectibles (rotate + float)
       objMapRef.current.forEach((obj3d, id) => {
@@ -697,30 +926,116 @@ export default function Canvas3D() {
     }
   }, [sceneObjects, sceneObjects.length, selectedId, sceneId]);
 
+  // ── Mouse controls (orbit + pan + click-to-place) ───────────────
+  const mouseDownPos = useRef({ x: 0, y: 0 });
+
+  function handleEditorClick(clientX: number, clientY: number) {
+    const mount = mountRef.current;
+    const cam   = camRef.current;
+    if (!mount || !cam) return;
+    if (store.ui.activeTool !== 'add') return;
+    const rect = mount.getBoundingClientRect();
+    const ndcX =  ((clientX - rect.left) / rect.width)  * 2 - 1;
+    const ndcY = -((clientY - rect.top)  / rect.height) * 2 + 1;
+    raycaster.current.setFromCamera(new THREE.Vector2(ndcX, ndcY), cam);
+    const target = new THREE.Vector3();
+    if (!raycaster.current.ray.intersectPlane(groundPlane.current, target)) return;
+    const edX = Math.round(target.x * 80 + 960);
+    const edY = Math.round(1080 - (target.y + 5.5 - 1.0) * 80);
+    const selObj = store.getSelectedObject();
+    store.addObjectOfType((selObj?.type || 'platform') as any, { x: edX, y: edY });
+  }
+
+  function onMouseDown(e: React.MouseEvent) {
+    if (isPlayMode) { mountRef.current?.requestPointerLock?.(); return; }
+    isDragging.current = true;
+    lastMouse.current = { x: e.clientX, y: e.clientY, btn: e.button };
+    mouseDownPos.current = { x: e.clientX, y: e.clientY };
+  }
+
+  function onMouseMove(e: React.MouseEvent) {
+    if (isPlayMode) return;
+    if (!isDragging.current) return;
+    const dx = e.clientX - lastMouse.current.x;
+    const dy = e.clientY - lastMouse.current.y;
+    lastMouse.current = { x: e.clientX, y: e.clientY, btn: lastMouse.current.btn };
+    const cs = camState.current;
+    if (lastMouse.current.btn === 0) { cs.theta -= dx*0.008; cs.phi = Math.max(0.15,Math.min(1.5,cs.phi+dy*0.008)); }
+    else if (lastMouse.current.btn === 2) { cs.tx -= dx*0.04; cs.tz += dy*0.04; }
+    updateCamera();
+  }
+
+  function onMouseUp(e: React.MouseEvent) {
+    if (isPlayMode) return;
+    isDragging.current = false;
+    const dx = Math.abs(e.clientX - mouseDownPos.current.x);
+    const dy = Math.abs(e.clientY - mouseDownPos.current.y);
+    if (dx < 5 && dy < 5 && e.button === 0) handleEditorClick(e.clientX, e.clientY);
+  }
+
+  function onWheel(e: React.WheelEvent) {
+    if (isPlayMode) return;
+    camState.current.radius = Math.max(3, Math.min(40, camState.current.radius + e.deltaY * 0.02));
+    updateCamera();
+  }
+
+  const cursorStyle = isPlayMode ? 'none' : store.ui.activeTool === 'add' ? 'crosshair' : 'grab';
+
   return (
-    <div
-      ref={mountRef}
-      style={{ flex: 1, position: "relative", overflow: "hidden", cursor: "grab", minHeight: 0, height: "100%", width: "100%" }}
-      onMouseDown={onMouseDown}
-      onMouseMove={onMouseMove}
-      onMouseUp={onMouseUp}
-      onMouseLeave={onMouseUp}
-      onWheel={onWheel}
-      onContextMenu={e => e.preventDefault()}
+    <div ref={mountRef}
+      style={{ flex:1, position:"relative", overflow:"hidden", cursor:cursorStyle, minHeight:0, height:"100%", width:"100%" }}
+      onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp}
+      onMouseLeave={() => { if (!isPlayMode) isDragging.current = false; }}
+      onWheel={onWheel} onContextMenu={e => e.preventDefault()}
     >
-      {/* Hint */}
-      <div style={{
-        position: "absolute", bottom: 12, left: "50%", transform: "translateX(-50%)",
-        background: "rgba(0,0,0,0.6)", borderRadius: 20, padding: "4px 14px",
-        fontSize: 11, color: "rgba(255,255,255,0.5)", pointerEvents: "none",
-        fontFamily: "var(--font-cairo)",
-      }}>
-        🖱 يسار: تدوير الكاميرا &nbsp;|&nbsp; يمين: تحريك &nbsp;|&nbsp; عجلة: zoom
-      </div>
+      {!isPlayMode && (
+        <div style={{ position:"absolute", bottom:12, left:"50%", transform:"translateX(-50%)",
+          background:"rgba(0,0,0,0.6)", borderRadius:20, padding:"4px 14px",
+          fontSize:11, color:"rgba(255,255,255,0.5)", pointerEvents:"none", fontFamily:"var(--font-cairo)" }}>
+          {store.ui.activeTool === 'add' ? 'كليك على الأرض لوضع الكائن بالمكان المحدد' : 'يسار: تدوير | يمين: تحريك | عجلة: zoom'}
+        </div>
+      )}
+      {isPlayMode && (
+        <>
+          <div style={{ position:"absolute", top:12, left:"50%", transform:"translateX(-50%)",
+            background:"rgba(0,0,0,0.75)", borderRadius:12, padding:"6px 18px",
+            fontSize:11, color:"#a5b4fc", pointerEvents:"none", fontFamily:"var(--font-cairo)", display:"flex", gap:16 }}>
+            <span>WASD: حركة</span><span>Space: قفز</span>
+            <span>V: كاميرا ({playHUD.viewMode==='first'?'FPS':'TPS'})</span>
+            <span>E: ضع {store.getSelectedObject()?.type||'platform'}</span>
+          </div>
+          <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", pointerEvents:"none" }}>
+            <div style={{ position:"relative", width:20, height:20 }}>
+              <div style={{ position:"absolute", top:"50%", left:0, right:0, height:1.5, background:"rgba(255,255,255,0.9)", transform:"translateY(-50%)" }}/>
+              <div style={{ position:"absolute", left:"50%", top:0, bottom:0, width:1.5, background:"rgba(255,255,255,0.9)", transform:"translateX(-50%)" }}/>
+            </div>
+          </div>
+          <button onClick={()=>store.setPlaying(false)} style={{ position:"absolute", top:12, right:12,
+            background:"rgba(239,68,68,0.85)", border:"none", borderRadius:8,
+            color:"#fff", padding:"5px 12px", fontSize:11, cursor:"pointer", fontFamily:"var(--font-cairo)" }}>
+            خروج
+          </button>
+        </>
+      )}
     </div>
   );
 }
 
+function worldX(obj: GameObject) { return (obj.x - 960) / 80; }
+function worldY(obj: GameObject) {
+  const y3d = (1080 - obj.y) / 80 - 5.5;
+  if (obj.type === "platform" || obj.type === "wall") return y3d + 0.12;
+  if (obj.type === "collectible") return y3d + 1.5;
+  return y3d + 1.0;
+}
+function addSelectionRing(obj3d: THREE.Object3D): THREE.Mesh {
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(0.55, 0.72, 16),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, transparent: true, opacity: 0.85 })
+  );
+  ring.rotation.x = -Math.PI / 2; ring.position.y = -0.02; ring.visible = false;
+  obj3d.add(ring); return ring;
+}
 // ── تحويل إحداثيات الـ editor (pixels) → 3D world ────────────
 // الـ scene افتراضياً 1920×1080 — المركز (960, 540)
 // بنقسم على 80 عشان تكون الأحجام معقولة في الـ 3D
