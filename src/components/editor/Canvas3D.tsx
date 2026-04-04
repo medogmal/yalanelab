@@ -289,11 +289,13 @@ function buildObject3D(obj: GameObject): THREE.Object3D {
   if (spriteKey === "enemy_skeleton") return buildSkeleton();
   if (spriteKey === "boss_dragon")    return buildDragon();
 
-  // شخصيات بشرية
-  if (spriteKey && CHAR_COLORS[spriteKey]) {
-    const group = buildHumanoid(spriteKey);
-    addHeadgear(group, spriteKey);
-    addWeapon(group, spriteKey);
+  // شخصيات بشرية - أو أي player/enemy/npc بدون spriteKey محدد
+  if ((spriteKey && CHAR_COLORS[spriteKey]) ||
+      (!spriteKey && (obj.type === 'player' || obj.type === 'enemy' || obj.type === 'npc'))) {
+    const key = spriteKey || (obj.type === 'enemy' ? 'enemy_slime' : obj.type === 'npc' ? 'npc_merchant' : 'hero_warrior');
+    const group = buildHumanoid(key);
+    addHeadgear(group, key);
+    addWeapon(group, key);
     return group;
   }
 
@@ -875,33 +877,7 @@ export default function Canvas3D() {
     };
   }, []);
 
-  // ── Mouse controls (orbit + pan) ─────────────────────────
-  function onMouseDown(e: React.MouseEvent) {
-    isDragging.current = true;
-    lastMouse.current = { x: e.clientX, y: e.clientY, btn: e.button };
-  }
-  function onMouseMove(e: React.MouseEvent) {
-    if (!isDragging.current) return;
-    const dx = e.clientX - lastMouse.current.x;
-    const dy = e.clientY - lastMouse.current.y;
-    lastMouse.current = { x: e.clientX, y: e.clientY, btn: lastMouse.current.btn };
-    const cs = camState.current;
-    if (lastMouse.current.btn === 0) {
-      cs.theta -= dx * 0.008;
-      cs.phi    = Math.max(0.15, Math.min(1.5, cs.phi + dy * 0.008));
-    } else if (lastMouse.current.btn === 2) {
-      cs.tx -= dx * 0.04;
-      cs.tz += dy * 0.04;
-    }
-    updateCamera();
-  }
-  function onMouseUp() { isDragging.current = false; }
-  function onWheel(e: React.WheelEvent) {
-    camState.current.radius = Math.max(3, Math.min(40, camState.current.radius + e.deltaY * 0.02));
-    updateCamera();
-  }
-
-  // ── Sync game objects to 3D scene ────────────────────────
+  // ── Sync game objects to 3D scene ─────────────────────────────
   const activeScene = store.getActiveScene();
   const sceneObjects = activeScene?.objects ?? [];
   const selectedId   = store.ui.selectedObjectId;
