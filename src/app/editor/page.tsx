@@ -1483,7 +1483,7 @@ function EditorContent() {
         <HierarchyPanel />
 
         {/* Canvas Area */}
-        <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
+        <div style={{ flex: 1, position: "relative", overflow: "hidden", minHeight: 0, display: "flex", flexDirection: "column" }}>
           <Canvas3D />
 
           {/* VS Graph Overlay */}

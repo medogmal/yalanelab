@@ -511,6 +511,11 @@ export default function Canvas3D() {
     console.log('[Canvas3D] Mount size:', mount.clientWidth, 'x', mount.clientHeight);
     console.log('[Canvas3D] THREE version:', THREE.REVISION);
 
+    // لو الـ height = 0 انتظر frame واحد عشان الـ layout يكتمل
+    const actualW = mount.clientWidth  || mount.offsetWidth  || 800;
+    const actualH = mount.clientHeight || mount.offsetHeight || 600;
+    console.log('[Canvas3D] Actual size used:', actualW, 'x', actualH);
+
     // Scene
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0a0f1e);
@@ -519,7 +524,7 @@ export default function Canvas3D() {
     console.log('[Canvas3D] ✅ Scene created');
 
     // Camera
-    const cam = new THREE.PerspectiveCamera(52, mount.clientWidth / mount.clientHeight, 0.1, 200);
+    const cam = new THREE.PerspectiveCamera(52, actualW / Math.max(actualH, 1), 0.1, 200);
     camRef.current = cam;
     updateCamera();
     console.log('[Canvas3D] ✅ Camera created');
@@ -533,11 +538,15 @@ export default function Canvas3D() {
       console.error('[Canvas3D] ❌ WebGL NOT supported or failed:', err);
       return;
     }
-    renderer.setSize(mount.clientWidth, mount.clientHeight);
+    renderer.setSize(actualW, Math.max(actualH, 1));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     mount.appendChild(renderer.domElement);
+    // اجعل الـ canvas يملأ الـ div تماماً
+    renderer.domElement.style.width = '100%';
+    renderer.domElement.style.height = '100%';
+    renderer.domElement.style.display = 'block';
     rendRef.current = renderer;
     console.log('[Canvas3D] ✅ Renderer appended to DOM');
 
@@ -584,9 +593,11 @@ export default function Canvas3D() {
     // Resize
     const onResize = () => {
       if (!mount || !cam || !renderer) return;
-      cam.aspect = mount.clientWidth / mount.clientHeight;
+      const w = mount.clientWidth  || mount.offsetWidth  || 800;
+      const h = mount.clientHeight || mount.offsetHeight || 600;
+      cam.aspect = w / Math.max(h, 1);
       cam.updateProjectionMatrix();
-      renderer.setSize(mount.clientWidth, mount.clientHeight);
+      renderer.setSize(w, Math.max(h, 1));
     };
     window.addEventListener("resize", onResize);
 
@@ -689,7 +700,7 @@ export default function Canvas3D() {
   return (
     <div
       ref={mountRef}
-      style={{ flex: 1, position: "relative", overflow: "hidden", cursor: "grab" }}
+      style={{ flex: 1, position: "relative", overflow: "hidden", cursor: "grab", minHeight: 0, height: "100%", width: "100%" }}
       onMouseDown={onMouseDown}
       onMouseMove={onMouseMove}
       onMouseUp={onMouseUp}
