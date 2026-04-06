@@ -6,90 +6,26 @@
     "passHash": "eb9e6b11dfb3add583e89db18cd16d6dcc8a2bd768bb1a961b7ceeb943da20c4563b045596af47a109dbdf1353386767c75509eafd2fb9b0ee605c83ef9436b0",
     "salt": "f43597c6f9750114855c63af0d08d86c",
     "createdAt": 1771893905917,
-    "ratings": {
-      "chess": 1200
-    },
+    "ratings": { "chess": 1200, "domino": 1200, "ludo": 1200, "baloot": 1200 },
     "tier": "free",
-    "cosmetics": {
-      "pieceSet": "lichess",
-      "boardTheme": "classic"
-    },
-    "unlockedPieceSets": [
-      "lichess",
-      "staunton"
-    ],
-    "unlockedBoardThemes": [
-      "classic"
-    ],
-    "streakDays": 1,
-    "lastDailyRewardAt": 20512,
-    "xp": 30,
-    "level": 1,
-    "matchesDomino": 3,
-    "lossesDomino": 3,
-    "currentWinStreakDomino": 0,
-    "totalDurationDomino": 269,
-    "dailyCycleDay": 2,
-    "passXP": 20,
-    "dailyMissionsStartDay": 20512,
-    "weeklyMissionsStartDay": 20510,
+    "cosmetics": { "pieceSet": "lichess", "boardTheme": "classic" },
+    "unlockedPieceSets": ["lichess", "staunton"],
+    "unlockedBoardThemes": ["classic"],
+    "streakDays": 1, "lastDailyRewardAt": 20512,
+    "xp": 30, "level": 1, "coins": 0, "gems": 0,
+    "matchesDomino": 3, "lossesDomino": 3, "currentWinStreakDomino": 0,
+    "totalDurationDomino": 269, "dailyCycleDay": 2, "passXP": 20,
+    "dailyMissionsStartDay": 20512, "weeklyMissionsStartDay": 20510,
+    "chests": { "wooden": 0, "silver": 0, "golden": 0, "legendary": 0 },
     "dailyMissions": [
-      {
-        "id": "daily_win3",
-        "title": "اكسب 3 مباريات",
-        "target": 3,
-        "progress": 0,
-        "reward": {
-          "coins": 800
-        }
-      },
-      {
-        "id": "daily_play5",
-        "title": "العب 5 مباريات أونلاين",
-        "target": 5,
-        "progress": 2,
-        "reward": {
-          "xp": 50
-        }
-      },
-      {
-        "id": "daily_score50",
-        "title": "سجّل 50 نقطة إجمالية",
-        "target": 50,
-        "progress": 8,
-        "reward": {
-          "chest": "wooden"
-        }
-      }
+      { "id": "daily_win3",    "title": "اكسب 3 مباريات",          "target": 3,  "progress": 0, "reward": { "coins": 800 } },
+      { "id": "daily_play5",   "title": "العب 5 مباريات أونلاين", "target": 5,  "progress": 2, "reward": { "xp": 50 } },
+      { "id": "daily_score50", "title": "سجّل 50 نقطة إجمالية",   "target": 50, "progress": 8, "reward": { "chest": "wooden" } }
     ],
     "weeklyMissions": [
-      {
-        "id": "weekly_win5",
-        "title": "اكسب 5 مباريات",
-        "target": 5,
-        "progress": 0,
-        "reward": {
-          "coins": 3000
-        }
-      },
-      {
-        "id": "weekly_play10",
-        "title": "العب 10 مباريات أونلاين",
-        "target": 10,
-        "progress": 2,
-        "reward": {
-          "xp": 150
-        }
-      },
-      {
-        "id": "weekly_score200",
-        "title": "سجّل 200 نقطة إجمالية",
-        "target": 200,
-        "progress": 8,
-        "reward": {
-          "chest": "silver"
-        }
-      }
+      { "id": "weekly_win5",     "title": "اكسب 5 مباريات",          "target": 5,   "progress": 0, "reward": { "coins": 3000 } },
+      { "id": "weekly_play10",   "title": "العب 10 مباريات أونلاين","target": 10,  "progress": 2, "reward": { "xp": 150 } },
+      { "id": "weekly_score200", "title": "سجّل 200 نقطة إجمالية",  "target": 200, "progress": 8, "reward": { "chest": "silver" } }
     ]
   },
   {
@@ -99,30 +35,16 @@
     "passHash": "c40c51c4fb9f04eb0614b854feeaa4b33bbc9fb4870e55668c59f6c5bde9312bbd320b69c6623c608db4f88ca3ca032b5f63c3eca75002baaefe93cd7fcceb86",
     "salt": "1132557dffa623a4d60cade0f2f52839",
     "createdAt": 1772854406660,
-    "ratings": {
-      "chess": 1200,
-      "domino": 1200
-    },
-    "tier": "elite",
-    "role": "super_admin",
-    "coins": 999999,
-    "gems": 999999,
-    "cosmetics": {
-      "pieceSet": "gold",
-      "boardTheme": "ocean"
-    },
-    "unlockedPieceSets": [
-      "lichess",
-      "staunton",
-      "gold",
-      "neon"
-    ],
-    "unlockedBoardThemes": [
-      "classic",
-      "wood",
-      "carbon",
-      "ocean"
-    ]
+    "ratings": { "chess": 1200, "domino": 1200, "ludo": 1200, "baloot": 1200 },
+    "tier": "elite", "role": "super_admin",
+    "coins": 999999, "gems": 999999,
+    "cosmetics": { "pieceSet": "gold", "boardTheme": "ocean" },
+    "unlockedPieceSets": ["lichess","staunton","gold","neon"],
+    "unlockedBoardThemes": ["classic","wood","carbon","ocean"],
+    "xp": 0, "level": 1, "streakDays": 0, "lastDailyRewardAt": 0,
+    "chests": { "wooden": 0, "silver": 0, "golden": 0, "legendary": 0 },
+    "dailyMissions": [], "weeklyMissions": [],
+    "passXP": 0, "passLevel": 1, "passPremium": false
   },
   {
     "id": "af8ba859-fdbf-40cb-bb75-fcb72ff53275",
@@ -131,55 +53,43 @@
     "passHash": "92dd206d632a91e55a62d0bf619720fe944c2e228ae9f570e946a4de39202e5895cc6dd99a5538a4e55a769e1c10b400fbda82694cd511e2a5f64e072fe45277",
     "salt": "7cc902d24184810cffdd5467474dacaa",
     "createdAt": 1775092065077,
-    "ratings": {
-      "chess": 1200,
-      "domino": 1200,
-      "ludo": 1200,
-      "baloot": 1200
-    },
-    "tier": "elite",
-    "role": "super_admin",
-    "cosmetics": {
-      "pieceSet": "lichess",
-      "boardTheme": "classic"
-    },
-    "unlockedPieceSets": [
-      "lichess",
-      "staunton"
-    ],
-    "unlockedBoardThemes": [
-      "classic"
-    ],
-    "xp": 0,
-    "level": 1,
-    "streakDays": 0,
-    "lastDailyRewardAt": 0,
-    "coins": 500,
-    "gems": 0,
-    "chests": {
-      "wooden": 0,
-      "silver": 0,
-      "golden": 0,
-      "legendary": 0
-    },
-    "dailyCycleDay": 1,
-    "dailyCycleCount": 0,
-    "seasonStartDay": 20545,
-    "lastSeasonRewardClaimDay": 0,
-    "activeChest": null,
-    "dailyMissions": [],
-    "weeklyMissions": [],
-    "dailyMissionsStartDay": 20545,
-    "weeklyMissionsStartDay": 20545,
-    "passXP": 0,
-    "passLevel": 1,
-    "passPremium": false,
-    "matchesDomino": 0,
-    "winsDomino": 0,
-    "lossesDomino": 0,
-    "drawsDomino": 0,
-    "longestWinStreakDomino": 0,
-    "currentWinStreakDomino": 0,
-    "totalDurationDomino": 0
+    "ratings": { "chess": 1200, "domino": 1200, "ludo": 1200, "baloot": 1200 },
+    "tier": "elite", "role": "super_admin",
+    "cosmetics": { "pieceSet": "lichess", "boardTheme": "classic" },
+    "unlockedPieceSets": ["lichess","staunton"],
+    "unlockedBoardThemes": ["classic"],
+    "xp": 0, "level": 1, "streakDays": 0, "lastDailyRewardAt": 0,
+    "coins": 500, "gems": 0,
+    "chests": { "wooden": 0, "silver": 0, "golden": 0, "legendary": 0 },
+    "dailyCycleDay": 1, "dailyCycleCount": 0,
+    "seasonStartDay": 20545, "lastSeasonRewardClaimDay": 0, "activeChest": null,
+    "dailyMissions": [], "weeklyMissions": [],
+    "dailyMissionsStartDay": 20545, "weeklyMissionsStartDay": 20545,
+    "passXP": 0, "passLevel": 1, "passPremium": false,
+    "matchesDomino": 0, "winsDomino": 0, "lossesDomino": 0, "drawsDomino": 0,
+    "longestWinStreakDomino": 0, "currentWinStreakDomino": 0, "totalDurationDomino": 0
+  },
+  {
+    "id": "ahmed_main_2025",
+    "name": "احمد",
+    "email": "admin@yala.com",
+    "passHash": "9e6917645624f275856e40efb583fed54dc99c5fcf3f3d5378f02370b140ea4c5efddfb5890b9b1511fe312590900c4589be617e584422b09204ccb446bcdd89",
+    "salt": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
+    "createdAt": 1775200000000,
+    "ratings": { "chess": 2400, "domino": 2400, "ludo": 2400, "baloot": 2400 },
+    "tier": "elite", "role": "super_admin",
+    "coins": 9999999, "gems": 9999999,
+    "cosmetics": { "pieceSet": "gold", "boardTheme": "ocean" },
+    "unlockedPieceSets": ["lichess","staunton","gold","neon"],
+    "unlockedBoardThemes": ["classic","wood","carbon","ocean"],
+    "xp": 99999, "level": 99, "streakDays": 365, "lastDailyRewardAt": 0,
+    "chests": { "wooden": 99, "silver": 99, "golden": 99, "legendary": 99 },
+    "dailyCycleDay": 7, "dailyCycleCount": 99,
+    "seasonStartDay": 20545, "lastSeasonRewardClaimDay": 0, "activeChest": null,
+    "dailyMissions": [], "weeklyMissions": [],
+    "dailyMissionsStartDay": 20545, "weeklyMissionsStartDay": 20545,
+    "passXP": 9999, "passLevel": 99, "passPremium": true,
+    "matchesDomino": 500, "winsDomino": 400, "lossesDomino": 50, "drawsDomino": 50,
+    "longestWinStreakDomino": 50, "currentWinStreakDomino": 10, "totalDurationDomino": 999999
   }
 ]
