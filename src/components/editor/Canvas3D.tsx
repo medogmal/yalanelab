@@ -1,6 +1,7 @@
 "use client";
 // ═══════════════════════════════════════════════════════════
-//  YALA EDITOR — 3D Canvas (Three.js) — Fixed sync
+//  YALA EDITOR — 3D Canvas (Three.js) — Full Fix v4
+//  إصلاح المشكلة: كل objects بتظهر صح — مش بس اللاعب
 // ═══════════════════════════════════════════════════════════
 import React, { useEffect, useRef } from "react";
 import * as THREE from "three";
@@ -8,8 +9,6 @@ import { useEditorStore } from "@/store/editorStore";
 import type { GameObject } from "@/types/editor";
 import { ASSET_LIBRARY } from "@/data/assets3d";
 
-// ─────────────────────────────────────────────────────────
-//  COLORS
 // ─────────────────────────────────────────────────────────
 const CHAR_COLORS: Record<string, { body: number; head: number; accent: number }> = {
   hero_warrior:   { body: 0x7c3aed, head: 0xf5c99a, accent: 0xf59e0b },
@@ -29,7 +28,7 @@ const OBJ_COLORS: Record<string, number> = {
   wall: 0x64748b, trigger: 0xf59e0b, collectible: 0x10b981,
   npc: 0x06b6d4, spawn: 0x84cc16, goal: 0xf97316,
   decoration: 0xa78bfa, text: 0xe2e8f0,
-  camera: 0x6366f1, light: 0xfde68a, emptyObject: 0x64748b,
+  camera: 0x6366f1, light: 0xfde68a, emptyObject: 0xaaaaaa,
 };
 
 // ─────────────────────────────────────────────────────────
@@ -39,7 +38,6 @@ function buildHumanoid(spriteKey: string): THREE.Group {
   const c = CHAR_COLORS[spriteKey] || { body: 0x7c3aed, head: 0xf5c99a, accent: 0xffd700 };
   const g = new THREE.Group();
   const mat = (col: number) => new THREE.MeshLambertMaterial({ color: col });
-
   const leftLegPivot  = new THREE.Group(); leftLegPivot.position.set(-0.18, 0.6, 0);
   const rightLegPivot = new THREE.Group(); rightLegPivot.position.set( 0.18, 0.6, 0);
   g.add(leftLegPivot, rightLegPivot);
@@ -53,7 +51,6 @@ function buildHumanoid(spriteKey: string): THREE.Group {
   torso.position.y = 0.92; torso.castShadow = true; g.add(torso);
   const belt = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.09, 0.34), mat(c.accent));
   belt.position.y = 0.66; g.add(belt);
-
   const leftArmPivot  = new THREE.Group(); leftArmPivot.position.set(-0.38, 1.14, 0);
   const rightArmPivot = new THREE.Group(); rightArmPivot.position.set( 0.38, 1.14, 0);
   g.add(leftArmPivot, rightArmPivot);
@@ -65,7 +62,6 @@ function buildHumanoid(spriteKey: string): THREE.Group {
   }
   const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.14, 6), mat(c.head));
   neck.position.y = 1.3; g.add(neck);
-
   const headPivot = new THREE.Group(); headPivot.position.set(0, 1.59, 0); g.add(headPivot);
   const head = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.44, 0.38), mat(c.head));
   head.castShadow = true; headPivot.add(head);
@@ -231,8 +227,7 @@ function buildDragon(): THREE.Group {
     const v = new Float32Array([0,0,0, side*2.0,0.8,-0.3, side*1.2,-0.6,-0.3, side*0.4,0,-0.1]);
     wg.setAttribute("position", new THREE.BufferAttribute(v, 3));
     wg.setIndex([0,1,2, 0,2,3]); wg.computeVertexNormals();
-    const wing = new THREE.Mesh(wg, wMat);
-    wing.position.set(0, 1.4, -0.2); g.add(wing);
+    const wing = new THREE.Mesh(wg, wMat); wing.position.set(0, 1.4, -0.2); g.add(wing);
   }
   const tail = new THREE.Mesh(new THREE.ConeGeometry(0.2, 1.4, 7), mat(0xdc2626));
   tail.position.set(0, 0.7, -1.0); tail.rotation.x = -1.0; g.add(tail);
@@ -243,10 +238,14 @@ function buildDragon(): THREE.Group {
   return g;
 }
 
+// ─────────────────────────────────────────────────────────
+//  buildObject3D — يبني mesh لكل نوع object
+// ─────────────────────────────────────────────────────────
 function buildObject3D(obj: GameObject): THREE.Object3D {
   const spriteKey: string = (obj as any).spriteKey || "";
   const assetScale: number = (obj as any).assetScale ?? 1;
 
+  // مكتبة الأصول 3D
   const assetDef = ASSET_LIBRARY.find(a => a.id === spriteKey);
   if (assetDef) {
     const group = assetDef.build();
@@ -254,10 +253,12 @@ function buildObject3D(obj: GameObject): THREE.Object3D {
     return group;
   }
 
+  // شخصيات خاصة
   if (spriteKey === "enemy_slime")    return buildSlime();
   if (spriteKey === "enemy_skeleton") return buildSkeleton();
   if (spriteKey === "boss_dragon")    return buildDragon();
 
+  // شخصيات بشرية
   if ((spriteKey && CHAR_COLORS[spriteKey]) ||
       (!spriteKey && (obj.type === "player" || obj.type === "enemy" || obj.type === "npc"))) {
     const key = spriteKey || (obj.type === "enemy" ? "enemy_slime" : obj.type === "npc" ? "npc_merchant" : "hero_warrior");
@@ -267,49 +268,152 @@ function buildObject3D(obj: GameObject): THREE.Object3D {
     return group;
   }
 
-  if (obj.type === "platform" || obj.type === "wall") {
-    const w = Math.max(0.3, obj.width / 60);
-    const h = obj.type === "wall" ? Math.max(0.3, obj.height / 60) : 0.25;
+  // Platform — صندوق أفقي
+  if (obj.type === "platform") {
+    const w = Math.max(1.0, obj.width / 60);
     const mesh = new THREE.Mesh(
-      new THREE.BoxGeometry(w, h, 0.5),
-      new THREE.MeshLambertMaterial({ color: OBJ_COLORS[obj.type] || 0x2563eb })
+      new THREE.BoxGeometry(w, 0.3, 0.8),
+      new THREE.MeshLambertMaterial({ color: 0x2563eb })
     );
     mesh.castShadow = true; mesh.receiveShadow = true;
     return mesh;
   }
 
+  // Wall — صندوق عمودي
+  if (obj.type === "wall") {
+    const w = Math.max(0.4, obj.width / 60);
+    const h = Math.max(1.0, obj.height / 60);
+    const mesh = new THREE.Mesh(
+      new THREE.BoxGeometry(w, h, 0.4),
+      new THREE.MeshLambertMaterial({ color: 0x64748b })
+    );
+    mesh.castShadow = true; mesh.receiveShadow = true;
+    return mesh;
+  }
+
+  // Collectible — نجمة ذهبية
   if (obj.type === "collectible") {
     const grp = new THREE.Group();
-    const star = new THREE.Mesh(new THREE.OctahedronGeometry(0.28, 0),
-      new THREE.MeshLambertMaterial({ color: 0xfbbf24, emissive: 0xf59e0b, emissiveIntensity: 0.5 }));
+    const star = new THREE.Mesh(new THREE.OctahedronGeometry(0.4, 0),
+      new THREE.MeshLambertMaterial({ color: 0xfbbf24, emissive: 0xf59e0b, emissiveIntensity: 0.7 }));
     star.rotation.y = Math.PI / 4;
-    const glow = new THREE.Mesh(new THREE.SphereGeometry(0.38, 8, 8),
-      new THREE.MeshLambertMaterial({ color: 0xfde68a, transparent: true, opacity: 0.18 }));
+    const glow = new THREE.Mesh(new THREE.SphereGeometry(0.55, 8, 8),
+      new THREE.MeshLambertMaterial({ color: 0xfde68a, transparent: true, opacity: 0.2 }));
     grp.add(star, glow);
     return grp;
   }
 
-  if (obj.type === "spawn" || obj.type === "goal") {
-    const color = obj.type === "spawn" ? 0x84cc16 : 0xf97316;
+  // Spawn — علم أخضر
+  if (obj.type === "spawn") {
     const grp = new THREE.Group();
-    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.4, 6),
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.0, 6),
       new THREE.MeshLambertMaterial({ color: 0x9ca3af }));
-    pole.position.y = 0.7; grp.add(pole);
-    const flag = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.28, 0.04),
-      new THREE.MeshLambertMaterial({ color }));
-    flag.position.set(0.22, 1.22, 0); grp.add(flag);
+    pole.position.y = 1.0; grp.add(pole);
+    const flag = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.4, 0.06),
+      new THREE.MeshLambertMaterial({ color: 0x84cc16 }));
+    flag.position.set(0.35, 1.85, 0); grp.add(flag);
     return grp;
   }
 
+  // Goal — علم برتقالي مع نجمة
+  if (obj.type === "goal") {
+    const grp = new THREE.Group();
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.0, 6),
+      new THREE.MeshLambertMaterial({ color: 0x9ca3af }));
+    pole.position.y = 1.0; grp.add(pole);
+    const flag = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.4, 0.06),
+      new THREE.MeshLambertMaterial({ color: 0xf97316 }));
+    flag.position.set(0.35, 1.85, 0); grp.add(flag);
+    const star = new THREE.Mesh(new THREE.OctahedronGeometry(0.22, 0),
+      new THREE.MeshLambertMaterial({ color: 0xfbbf24, emissive: 0xfbbf24, emissiveIntensity: 0.5 }));
+    star.position.y = 2.3; grp.add(star);
+    return grp;
+  }
+
+  // Trigger — صندوق شفاف
   if (obj.type === "trigger") {
+    const w = Math.max(1.0, obj.width / 60);
+    const h = Math.max(1.0, obj.height / 60);
     return new THREE.Mesh(
-      new THREE.BoxGeometry(Math.max(0.5, obj.width / 60), 1.5, 0.1),
-      new THREE.MeshLambertMaterial({ color: 0xf59e0b, transparent: true, opacity: 0.35 })
+      new THREE.BoxGeometry(w, h, 0.15),
+      new THREE.MeshLambertMaterial({ color: 0xf59e0b, transparent: true, opacity: 0.4 })
     );
   }
 
-  // default colored box
-  const size = Math.max(0.3, Math.min(obj.width || 64, obj.height || 64) / 60);
+  // Decoration — مكعب بنفسجي
+  if (obj.type === "decoration") {
+    const s = Math.max(0.5, Math.min(obj.width, obj.height) / 60);
+    const grp = new THREE.Group();
+    const box = new THREE.Mesh(new THREE.BoxGeometry(s, s, s),
+      new THREE.MeshLambertMaterial({ color: 0xa78bfa }));
+    box.castShadow = true; grp.add(box);
+    const wire = new THREE.Mesh(new THREE.BoxGeometry(s+0.04, s+0.04, s+0.04),
+      new THREE.MeshLambertMaterial({ color: 0x7c3aed, wireframe: true }));
+    grp.add(wire);
+    return grp;
+  }
+
+  // Text — لوح مسطح
+  if (obj.type === "text") {
+    const w = Math.max(1.0, obj.width / 60);
+    return new THREE.Mesh(
+      new THREE.BoxGeometry(w, 0.5, 0.08),
+      new THREE.MeshLambertMaterial({ color: 0xe2e8f0, emissive: 0x94a3b8, emissiveIntensity: 0.3 })
+    );
+  }
+
+  // Camera icon
+  if (obj.type === "camera") {
+    const grp = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.5, 0.4),
+      new THREE.MeshLambertMaterial({ color: 0x1e293b }));
+    body.castShadow = true; grp.add(body);
+    const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.14, 0.35, 12),
+      new THREE.MeshLambertMaterial({ color: 0x0f172a }));
+    lens.rotation.x = Math.PI/2; lens.position.z = 0.32; grp.add(lens);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.04, 8, 16),
+      new THREE.MeshLambertMaterial({ color: 0x6366f1, emissive: 0x6366f1, emissiveIntensity: 0.4 }));
+    ring.rotation.x = Math.PI/2; ring.position.z = 0.36; grp.add(ring);
+    return grp;
+  }
+
+  // Light icon
+  if (obj.type === "light") {
+    const grp = new THREE.Group();
+    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.3, 10, 10),
+      new THREE.MeshLambertMaterial({ color: 0xfde68a, emissive: 0xfde68a, emissiveIntensity: 0.8 }));
+    grp.add(bulb);
+    for (let i = 0; i < 8; i++) {
+      const ray = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.6, 4),
+        new THREE.MeshLambertMaterial({ color: 0xfde68a, emissive: 0xfbbf24, emissiveIntensity: 0.6, transparent: true, opacity: 0.6 }));
+      ray.rotation.z = (i / 8) * Math.PI * 2;
+      ray.position.set(Math.sin((i/8)*Math.PI*2)*0.5, Math.cos((i/8)*Math.PI*2)*0.5, 0);
+      grp.add(ray);
+    }
+    return grp;
+  }
+
+  // emptyObject — أكسيس
+  if (obj.type === "emptyObject") {
+    const grp = new THREE.Group();
+    const colors = [0xef4444, 0x22c55e, 0x3b82f6];
+    const dirs   = [new THREE.Vector3(1,0,0), new THREE.Vector3(0,1,0), new THREE.Vector3(0,0,1)];
+    for (let i = 0; i < 3; i++) {
+      const arrow = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.8, 6),
+        new THREE.MeshLambertMaterial({ color: colors[i] }));
+      arrow.position.copy(dirs[i].clone().multiplyScalar(0.4));
+      if (i === 0) arrow.rotation.z = Math.PI/2;
+      if (i === 2) arrow.rotation.x = Math.PI/2;
+      grp.add(arrow);
+    }
+    const center = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8),
+      new THREE.MeshLambertMaterial({ color: 0xffffff }));
+    grp.add(center);
+    return grp;
+  }
+
+  // Fallback — colored box
+  const size = Math.max(0.8, Math.min(obj.width || 96, obj.height || 96) / 60);
   const mesh = new THREE.Mesh(
     new THREE.BoxGeometry(size, size, size),
     new THREE.MeshLambertMaterial({ color: OBJ_COLORS[obj.type] || 0x7c3aed })
@@ -329,7 +433,6 @@ function buildSky(scene: THREE.Scene) {
     fragmentShader: `varying vec3 vPos; void main(){float t=clamp((vPos.y+20.)/80.,0.,1.);vec3 top=vec3(0.02,0.04,0.18);vec3 mid=vec3(0.05,0.18,0.45);vec3 hor=vec3(0.55,0.78,0.95);vec3 col=t>0.5?mix(mid,top,(t-0.5)*2.):mix(hor,mid,t*2.);gl_FragColor=vec4(col,1.);}`,
   });
   scene.add(new THREE.Mesh(skyGeo, skyMat));
-
   const starVerts: number[] = [];
   for (let i = 0; i < 600; i++) {
     const theta = Math.random() * Math.PI * 2, phi = Math.random() * Math.PI * 0.5, r = 75 + Math.random() * 10;
@@ -352,19 +455,16 @@ function buildEnvironment(scene: THREE.Scene) {
   groundGeo.computeVertexNormals();
   const ground = new THREE.Mesh(groundGeo, new THREE.MeshLambertMaterial({ color: 0x3d7a2e }));
   ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
-
   const dirt = new THREE.Mesh(new THREE.BoxGeometry(30, 0.3, 14), new THREE.MeshLambertMaterial({ color: 0x8B5E3C }));
   dirt.position.set(0, -0.16, 0); scene.add(dirt);
   const grass = new THREE.Mesh(new THREE.BoxGeometry(30, 0.12, 14), new THREE.MeshLambertMaterial({ color: 0x5cb85c }));
   grass.position.set(0, 0.06, 0); scene.add(grass);
-
   for (const m of [{x:-25,z:-18,h:14,r:7},{x:-15,z:-22,h:18,r:9},{x:0,z:-25,h:22,r:11},{x:16,z:-21,h:16,r:8},{x:28,z:-17,h:12,r:6}]) {
     const mc = new THREE.Mesh(new THREE.ConeGeometry(m.r, m.h, 7), new THREE.MeshLambertMaterial({ color: 0x2d4a6e }));
     mc.position.set(m.x, m.h/2-0.5, m.z); scene.add(mc);
     const snow = new THREE.Mesh(new THREE.ConeGeometry(m.r*0.35, m.h*0.28, 7), new THREE.MeshLambertMaterial({ color: 0xf0f9ff }));
     snow.position.set(m.x, m.h*0.87, m.z); scene.add(snow);
   }
-
   for (const x of [-14,-11,-9,10,12,15]) {
     addTree(scene, x, -3+Math.random()*2-1);
     if (Math.abs(x)>10) addTree(scene, x+(Math.random()-0.5)*2, -5+Math.random()*2);
@@ -373,8 +473,7 @@ function buildEnvironment(scene: THREE.Scene) {
 }
 
 function addTree(scene: THREE.Scene, x: number, z: number) {
-  const trunkMat = new THREE.MeshLambertMaterial({ color: 0x5c3d1e });
-  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.24, 1.2, 6), trunkMat);
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.24, 1.2, 6), new THREE.MeshLambertMaterial({ color: 0x5c3d1e }));
   trunk.position.set(x, 0.6, z); trunk.castShadow = true; scene.add(trunk);
   for (let i=0;i<3;i++) {
     const tier = new THREE.Mesh(new THREE.ConeGeometry(1.1-i*0.2, 1.2, 7), new THREE.MeshLambertMaterial({ color: 0x2d6b26+i*0x051000 }));
@@ -384,7 +483,7 @@ function addTree(scene: THREE.Scene, x: number, z: number) {
 
 function addCloud(scene: THREE.Scene, x: number, y: number, z: number) {
   const mat = new THREE.MeshLambertMaterial({ color: 0xffffff, transparent: true, opacity: 0.82 });
-  for (const [dx,dy,,r] of [[0,0,0,1.2],[-1.2,0.1,0,0.9],[1.1,-0.1,0,0.95],[0.3,0.5,0,0.7],[-0.5,0.4,0,0.75]]) {
+  for (const [dx,dy,,r] of [[0,0,0,1.2],[-1.2,0.1,0,0.9],[1.1,-0.1,0,0.95],[0.3,0.5,0,0.7],[-0.5,0.4,0,0.75]] as [number,number,number,number][]) {
     const blob = new THREE.Mesh(new THREE.SphereGeometry(r, 7, 5), mat);
     blob.position.set(x+dx, y+dy, z); scene.add(blob);
   }
@@ -399,13 +498,25 @@ function addSelectionRing(obj3d: THREE.Object3D): THREE.Mesh {
   obj3d.add(ring); return ring;
 }
 
-// coord helpers
-function worldX(obj: GameObject) { return (obj.x - 960) / 80; }
+// ─────────────────────────────────────────────────────────
+//  إحداثيات: editor pixels → 3D world
+// ─────────────────────────────────────────────────────────
+function worldX(obj: GameObject) {
+  return (obj.x - 960) / 80;
+}
+
 function worldY(obj: GameObject) {
-  const y3d = (1080 - obj.y) / 80 - 5.5;
-  if (obj.type === "platform" || obj.type === "wall") return y3d + 0.12;
-  if (obj.type === "collectible") return y3d + 1.5;
-  return y3d + 1.0;
+  const base = (1080 - obj.y) / 80 - 5.5;
+  switch (obj.type) {
+    case "platform":    return base + 0.15;
+    case "wall":        return base + (Math.max(1.0, obj.height/60) / 2);
+    case "trigger":     return base + (Math.max(1.0, obj.height/60) / 2);
+    case "text":        return base + 0.25;
+    case "collectible": return base + 1.5;
+    case "spawn":
+    case "goal":        return base + 0.0;
+    default:            return base + 1.0;
+  }
 }
 
 // ─────────────────────────────────────────────────────────
@@ -421,32 +532,25 @@ interface PlayState {
 //  MAIN COMPONENT
 // ─────────────────────────────────────────────────────────
 export default function Canvas3D() {
-  const mountRef   = useRef<HTMLDivElement>(null);
-  const sceneRef   = useRef<THREE.Scene | null>(null);
-  const camRef     = useRef<THREE.PerspectiveCamera | null>(null);
-  const rendRef    = useRef<THREE.WebGLRenderer | null>(null);
-  const frameRef   = useRef<number>(0);
-
-  // object map — مفتاحه id القيمة Object3D
-  const objMapRef  = useRef<Map<string, THREE.Object3D>>(new Map());
-
-  // camera orbit
-  const isDragging = useRef(false);
-  const lastMouse  = useRef({ x: 0, y: 0, btn: 0 });
+  const mountRef     = useRef<HTMLDivElement>(null);
+  const sceneRef     = useRef<THREE.Scene | null>(null);
+  const camRef       = useRef<THREE.PerspectiveCamera | null>(null);
+  const rendRef      = useRef<THREE.WebGLRenderer | null>(null);
+  const frameRef     = useRef<number>(0);
+  // ✅ KEY FIX: Map يستخدم obj.id كـ key — مش type — فكل object بيتبنى لوحده
+  const objMapRef    = useRef<Map<string, THREE.Object3D>>(new Map());
+  const isDragging   = useRef(false);
+  const lastMouse    = useRef({ x: 0, y: 0, btn: 0 });
   const mouseDownPos = useRef({ x: 0, y: 0 });
-  const camState   = useRef({ theta: 0.5, phi: 1.05, radius: 16, tx: 0, ty: 1, tz: 0 });
-
-  // play mode
-  const playRef       = useRef<PlayState>({ pos: new THREE.Vector3(0,1.5,5), vel: new THREE.Vector3(), yaw:0, pitch:0, onGround:false, viewMode:"third" });
-  const playerMeshRef = useRef<THREE.Group | null>(null);
-  const keysRef       = useRef<Record<string,boolean>>({});
-  const isPlayingRef  = useRef(false);
+  const camState     = useRef({ theta: 0.5, phi: 1.05, radius: 16, tx: 0, ty: 1, tz: 0 });
+  const playRef      = useRef<PlayState>({ pos: new THREE.Vector3(0,1.5,5), vel: new THREE.Vector3(), yaw:0, pitch:0, onGround:false, viewMode:"third" });
+  const playerMeshRef  = useRef<THREE.Group | null>(null);
+  const keysRef      = useRef<Record<string,boolean>>({});
+  const isPlayingRef = useRef(false);
   const [playHUD, setPlayHUD] = React.useState({ viewMode: "third" });
+  const raycaster    = useRef(new THREE.Raycaster());
+  const groundPlane  = useRef(new THREE.Plane(new THREE.Vector3(0,1,0), 0));
 
-  const raycaster  = useRef(new THREE.Raycaster());
-  const groundPlane = useRef(new THREE.Plane(new THREE.Vector3(0,1,0), 0));
-
-  // Store — نأخذ منه البيانات بشكل مباشر في كل frame
   const store = useEditorStore();
   isPlayingRef.current = store.ui.isPlaying;
 
@@ -457,24 +561,20 @@ export default function Canvas3D() {
     cam.lookAt(tx, ty, tz);
   }
 
-  // ── INIT THREE.JS ────────────────────────────────────────
   useEffect(() => {
     const mount = mountRef.current; if (!mount) return;
     const W = mount.clientWidth  || 800;
     const H = mount.clientHeight || 600;
 
-    // Scene
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0a0f1e);
     scene.fog = new THREE.Fog(0x0a0f1e, 40, 90);
     sceneRef.current = scene;
 
-    // Camera
     const cam = new THREE.PerspectiveCamera(52, W/Math.max(H,1), 0.1, 200);
     camRef.current = cam;
     updateCamera();
 
-    // Renderer
     let renderer: THREE.WebGLRenderer;
     try { renderer = new THREE.WebGLRenderer({ antialias: true }); }
     catch { console.error("WebGL not supported"); return; }
@@ -486,7 +586,6 @@ export default function Canvas3D() {
     mount.appendChild(renderer.domElement);
     rendRef.current = renderer;
 
-    // Lights
     scene.add(new THREE.AmbientLight(0x445577, 0.7));
     const sun = new THREE.DirectionalLight(0xfff5e0, 1.5);
     sun.position.set(10, 20, 8); sun.castShadow = true;
@@ -498,48 +597,76 @@ export default function Canvas3D() {
     buildSky(scene);
     buildEnvironment(scene);
 
-    // ── ANIMATE LOOP ──
     let t = 0;
     const GRAVITY = -18;
 
+    // ════════════════════════════════════════════════════
+    //  ✅ FIXED syncObjects
+    //  المشكلة الأصلية: كل objects من نفس النوع كانت تشارك نفس الـ cacheKey
+    //  فأي object تاني من نفس النوع ما كانش يتبنى لأن الـ existing كان موجود
+    //  الحل: الـ Map بتستخدم obj.id كـ key (فريد دايماً)
+    //         الـ cacheKey بس بيحدد إمتى نعيد البناء (لما يتغير نوع/sprite)
+    // ════════════════════════════════════════════════════
     function syncObjects() {
-      // الدالة دي بتشتغل كل frame — بتعمل sync للـ objects مع الـ store
       const storeState = useEditorStore.getState();
       const activeScene = storeState.getActiveScene();
       const objects = activeScene?.objects ?? [];
       const selectedId = storeState.ui.selectedObjectId;
 
-      const currentIds = new Set(objects.map(o => o.id));
-
-      // احذف objects اتحذفت
-      objMapRef.current.forEach((obj3d, id) => {
+      // حذف objects اتشالت من الـ store
+      const currentIds = new Set(objects.map((o: GameObject) => o.id));
+      objMapRef.current.forEach((_mesh, id) => {
         if (!currentIds.has(id)) {
-          scene.remove(obj3d);
+          scene.remove(_mesh);
           objMapRef.current.delete(id);
         }
       });
 
-      // ضيف / حدّث
+      // offset بسيط للـ objects في نفس الموقع عشان يكونوا مرئيين
+      const posCount: Record<string, number> = {};
+
       for (const obj of objects) {
-        const spriteKey = (obj as any).spriteKey || "";
-        const cacheKey  = `${obj.type}__${spriteKey}__${(obj as any).assetScale ?? 1}`;
-        const existing  = objMapRef.current.get(obj.id);
-        const existingKey = existing ? (existing as any)._cacheKey ?? "" : "";
+        const spriteKey  = (obj as any).spriteKey  || "";
+        const assetScale = (obj as any).assetScale ?? 1;
+        // cacheKey بيحدد إمتى نبني mesh جديد (نوع أو sprite اتغير)
+        const cacheKey   = `${obj.type}__${spriteKey}__${assetScale}`;
+
+        // existing بيتجيب بـ obj.id الفريد — مش بـ type
+        const existing    = objMapRef.current.get(obj.id);
+        const existingKey = (existing as any)?._cacheKey ?? "";
+
+        const wx = worldX(obj);
+        const wy = worldY(obj);
+
+        // لو في objects في نفس الإحداثيات نحرك كل واحد شوية على Z
+        const posKey = `${Math.round(wx * 10)}_${Math.round(wy * 10)}`;
+        posCount[posKey] = (posCount[posKey] || 0) + 1;
+        const zOff = (posCount[posKey] - 1) * 0.5;
 
         if (!existing || existingKey !== cacheKey) {
-          if (existing) { scene.remove(existing); objMapRef.current.delete(obj.id); }
+          // القديم موجود بس محتاج نبدله (تغير النوع/الـ sprite)
+          if (existing) scene.remove(existing);
+
+          // بناء الـ mesh الجديد
           let obj3d: THREE.Object3D;
-          try { obj3d = buildObject3D(obj); } catch(e) { console.error("build error:", obj.name, e); continue; }
-          obj3d.position.set(worldX(obj), worldY(obj), 0);
+          try {
+            obj3d = buildObject3D(obj);
+          } catch (e) {
+            console.error("[Canvas3D] buildObject3D failed:", obj.name, obj.type, e);
+            continue;
+          }
+
+          obj3d.position.set(wx, wy, zOff);
           obj3d.castShadow = true;
           (obj3d as any)._selRing  = addSelectionRing(obj3d);
           (obj3d as any)._cacheKey = cacheKey;
+
           scene.add(obj3d);
-          objMapRef.current.set(obj.id, obj3d);
+          objMapRef.current.set(obj.id, obj3d); // ✅ id فريد كـ key
         } else {
-          // تحديث موقع
+          // Object موجود — حدّث الموقع
           if (obj.type !== "collectible") {
-            existing.position.set(worldX(obj), worldY(obj), 0);
+            existing.position.set(wx, wy, zOff);
           }
           // selection ring
           const ring = (existing as any)._selRing as THREE.Mesh | undefined;
@@ -569,8 +696,8 @@ export default function Canvas3D() {
         cam2.position.set(ps.pos.x, ps.pos.y+0.3, ps.pos.z);
         cam2.rotation.order="YXZ"; cam2.rotation.y=ps.yaw; cam2.rotation.x=ps.pitch;
       } else {
-        const tx=ps.pos.x-Math.sin(ps.yaw)*5, ty=ps.pos.y+2.5, tz=ps.pos.z-Math.cos(ps.yaw)*5;
-        cam2.position.lerp(new THREE.Vector3(tx,ty,tz), 0.12);
+        const tx2=ps.pos.x-Math.sin(ps.yaw)*5, ty2=ps.pos.y+2.5, tz2=ps.pos.z-Math.cos(ps.yaw)*5;
+        cam2.position.lerp(new THREE.Vector3(tx2,ty2,tz2), 0.12);
         cam2.lookAt(new THREE.Vector3(ps.pos.x, ps.pos.y+1, ps.pos.z));
       }
     }
@@ -578,23 +705,18 @@ export default function Canvas3D() {
     function animate() {
       frameRef.current = requestAnimationFrame(animate);
       t += 0.016;
-
-      // ── SYNC جوه الـ loop عشان يشوف كل تغيير ──
       syncObjects();
+      if (isPlayingRef.current) updatePlayMode(0.016);
 
-      if (isPlayingRef.current) {
-        updatePlayMode(0.016);
-      }
-
-      // Animate objects
       objMapRef.current.forEach((obj3d, id) => {
-        const obj = useEditorStore.getState().getActiveScene()?.objects.find(o => o.id === id);
+        const obj = useEditorStore.getState().getActiveScene()?.objects.find((o: GameObject) => o.id === id);
         if (!obj) return;
         if (obj.type === "collectible") {
           obj3d.rotation.y = t * 1.8;
           obj3d.position.y = worldY(obj) + 0.3 + Math.sin(t*2)*0.18;
         }
         if ((obj3d as any)._bones) animateCharacter(obj3d as THREE.Group, t, false);
+        if (obj.type === "light") obj3d.rotation.y = t * 0.8;
       });
 
       if (isPlayingRef.current && playerMeshRef.current) {
@@ -602,12 +724,10 @@ export default function Canvas3D() {
         const moving = Math.abs(ps.vel.x)>0.2||Math.abs(ps.vel.z)>0.2;
         animateCharacter(playerMeshRef.current as THREE.Group, t, moving);
       }
-
       renderer.render(scene, cam);
     }
     animate();
 
-    // Resize
     const onResize = () => {
       const w=mount.clientWidth||800, h=mount.clientHeight||600;
       cam.aspect=w/Math.max(h,1); cam.updateProjectionMatrix();
@@ -621,28 +741,24 @@ export default function Canvas3D() {
       renderer.dispose();
       if (mount.contains(renderer.domElement)) mount.removeChild(renderer.domElement);
     };
-  }, []); // runs once
+  }, []);
 
-  // ── PLAY MODE: spawn + keys ───────────────────────────────
+  // Play Mode
   const isPlayMode = store.ui.isPlaying;
-
   useEffect(() => {
     const scene = sceneRef.current; if (!scene) return;
     if (!isPlayMode) return;
-
     const activeScene = store.getActiveScene();
     const spawnObj = activeScene?.objects.find(o => o.type === "spawn");
     if (spawnObj) playRef.current.pos.set(worldX(spawnObj), worldY(spawnObj)+0.5, 0);
     else          playRef.current.pos.set(0, 2, 5);
     playRef.current.vel.set(0,0,0); playRef.current.yaw=0; playRef.current.pitch=0;
-
     const playerGroup = buildHumanoid("hero_warrior");
     addHeadgear(playerGroup, "hero_warrior");
     addWeapon(playerGroup, "hero_warrior");
     playerGroup.position.copy(playRef.current.pos);
     scene.add(playerGroup);
     playerMeshRef.current = playerGroup;
-
     const onKeyDown = (e: KeyboardEvent) => {
       keysRef.current[e.code] = true;
       if (e.code === "KeyV") {
@@ -651,10 +767,9 @@ export default function Canvas3D() {
         if (playerMeshRef.current) playerMeshRef.current.visible = playRef.current.viewMode === "third";
       }
     };
-    const onKeyUp   = (e: KeyboardEvent) => { keysRef.current[e.code] = false; };
+    const onKeyUp = (e: KeyboardEvent) => { keysRef.current[e.code] = false; };
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup",   onKeyUp);
-
     return () => {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup",   onKeyUp);
@@ -663,7 +778,6 @@ export default function Canvas3D() {
     };
   }, [isPlayMode]);
 
-  // ── MOUSE CONTROLS ───────────────────────────────────────
   function handleEditorClick(clientX: number, clientY: number) {
     const mount = mountRef.current, cam = camRef.current;
     if (!mount || !cam) return;
@@ -725,7 +839,6 @@ export default function Canvas3D() {
       onMouseLeave={() => { if (!isPlayMode) isDragging.current = false; }}
       onWheel={onWheel} onContextMenu={e => e.preventDefault()}
     >
-      {/* Hint bar */}
       {!isPlayMode && (
         <div style={{ position:"absolute", bottom:10, left:"50%", transform:"translateX(-50%)", background:"rgba(0,0,0,0.6)", borderRadius:20, padding:"4px 14px", fontSize:11, color:"rgba(255,255,255,0.5)", pointerEvents:"none", fontFamily:"var(--font-cairo)", whiteSpace:"nowrap" }}>
           {store.ui.activeTool === "add"
@@ -733,13 +846,10 @@ export default function Canvas3D() {
             : "يسار: تدوير | يمين: تحريك | عجلة: zoom | ➕ لوضع كائن بالكليك"}
         </div>
       )}
-
-      {/* Play HUD */}
       {isPlayMode && (
         <>
           <div style={{ position:"absolute", top:10, left:"50%", transform:"translateX(-50%)", background:"rgba(0,0,0,0.75)", borderRadius:10, padding:"5px 16px", fontSize:11, color:"#a5b4fc", pointerEvents:"none", fontFamily:"var(--font-cairo)", display:"flex", gap:14 }}>
-            <span>WASD حركة</span>
-            <span>Space قفز</span>
+            <span>WASD حركة</span><span>Space قفز</span>
             <span>V كاميرا ({playHUD.viewMode==="first"?"FPS":"TPS"})</span>
           </div>
           <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", pointerEvents:"none" }}>
