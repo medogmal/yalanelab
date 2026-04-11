@@ -30,7 +30,7 @@ const PLAYER_COLORS: Record<string, Color> = {
   ai3:    "blue",
 };
 
-// مواقع المربعات (15×15 grid، 0-indexed)
+// مواقع المربعات (15×15 grid، 0-indexed) — col, row
 const TRACK: [number, number][] = [
   [6,1],[6,2],[6,3],[6,4],[6,5],
   [5,6],[4,6],[3,6],[2,6],[1,6],[0,6],
@@ -61,6 +61,12 @@ const YARD_POS: Record<Color, [number, number][]> = {
   blue:   [[11,11],[12,11],[11,12],[12,12]],
 };
 
+// مجموعة مربعات المسار كـ Set للبحث السريع
+const TRACK_SET = new Set(TRACK.map(([c, r]) => `${c},${r}`));
+const HOME_TRACK_SET = new Set(
+  (Object.values(HOME_TRACK) as [number,number][][]).flat().map(([c,r]) => `${c},${r}`)
+);
+
 export default function LudoBoardOnline2D({ initialMatchId, botThinkMs = 2000 }: { initialMatchId?: string; botThinkMs?: number }) {
   const gameRef = useRef<LudoGame>(new LudoGame());
   const [tick, setTick] = useState(0);
@@ -87,7 +93,6 @@ export default function LudoBoardOnline2D({ initialMatchId, botThinkMs = 2000 }:
     return gameRef.current.tokens[pid].filter(t => t.pos.kind === "yard").length;
   }
 
-  // حساب الحركات الممكنة للاعب
   function calcValidMoves(_: number): number[] {
     const legal = g.legalMoves("player");
     return Array.from(new Set(legal.map(m => m.idx)));
@@ -96,9 +101,8 @@ export default function LudoBoardOnline2D({ initialMatchId, botThinkMs = 2000 }:
   async function roll() {
     if (rolling || aiThinking) return;
     if (g.turn !== "player") return;
-    if (diceVal !== null) return; // لازم تلعب الدور الحالي
+    if (diceVal !== null) return;
     setRolling(true);
-    // أنيميشن نرد
     let count = 0;
     const interval = setInterval(() => {
       setDiceVal(Math.floor(Math.random() * 6) + 1);
@@ -122,7 +126,6 @@ export default function LudoBoardOnline2D({ initialMatchId, botThinkMs = 2000 }:
             runAI();
           }, 1000);
         } else if (moves.length === 1) {
-          // لو حركة واحدة — تنفيذ تلقائي
           setTimeout(() => moveToken(moves[0]), 400);
         }
       }
@@ -135,23 +138,21 @@ export default function LudoBoardOnline2D({ initialMatchId, botThinkMs = 2000 }:
     return order[(idx + 1) % 4];
   }
 
-  /** يأكل أي بيدق خصم على نفس المربع */
   function eatOpponents(pid: string, trackIdx: number) {
-    const SAFE = [0,8,13,21,26,34,39,47]; // مربعات آمنة
+    const SAFE = [0,8,13,21,26,34,39,47];
     if (SAFE.includes(trackIdx)) return;
     (["player","ai1","ai2","ai3"] as string[]).forEach(opp => {
       if (opp === pid) return;
       const oppTokens = (g.tokens as any)[opp] as any[];
       oppTokens.forEach((tk: any) => {
         if (tk.pos.kind === "track" && tk.pos.index === trackIdx) {
-          tk.pos = { kind: "yard" }; // يرجع للقاعدة
+          tk.pos = { kind: "yard" };
           showMsg(`🍽️ ${PLAYER_LABELS[pid]} أكل بيدق ${PLAYER_LABELS[opp]}!`);
         }
       });
     });
   }
 
-  /** يبني path خطوة خطوة على الـ track */
   function buildPath(startIdx: number, steps: number, color: Color): [number,number][] {
     const path: [number,number][] = [];
     for (let s = 1; s <= steps; s++) {
@@ -167,14 +168,12 @@ export default function LudoBoardOnline2D({ initialMatchId, botThinkMs = 2000 }:
     return path.filter(Boolean);
   }
 
-  /** حرّك البيدق خطوة خطوة مع animation */
   async function animateMoveToken(pid: string, ti: number, d: number) {
     const token = (g.tokens as any)[pid][ti] as any;
     const color = PLAYER_COLORS[pid];
 
     if (token.pos.kind === "yard" && d === 6) {
       const startPos = { player:0, ai1:13, ai2:26, ai3:39 }[pid] ?? 0;
-      // خروج من القاعدة — jump مباشر
       token.pos = { kind: "track", index: startPos };
       eatOpponents(pid, startPos);
       sync();
@@ -187,7 +186,6 @@ export default function LudoBoardOnline2D({ initialMatchId, botThinkMs = 2000 }:
       setAnimatingToken({ pid, ti, path });
 
       for (let step = 0; step < path.length; step++) {
-        // حرك step واحد
         const nextIdx = startIdx + step + 1;
         if (nextIdx >= 52) {
           token.pos = { kind: "home", count: nextIdx - 51 };
@@ -195,10 +193,9 @@ export default function LudoBoardOnline2D({ initialMatchId, botThinkMs = 2000 }:
           token.pos = { kind: "track", index: nextIdx };
         }
         sync();
-        await new Promise(r => setTimeout(r, 120)); // تأخير بين كل خطوة
+        await new Promise(r => setTimeout(r, 120));
       }
 
-      // أكل بعد ما وصل
       if (token.pos.kind === "track") {
         eatOpponents(pid, token.pos.index);
       }
@@ -260,7 +257,6 @@ export default function LudoBoardOnline2D({ initialMatchId, botThinkMs = 2000 }:
 
       await new Promise(r => setTimeout(r, botThinkMs + Math.random() * 400));
 
-      // رمي النرد بمنطق اللعبة
       const d = gCur.roll();
       setDiceVal(d);
 
@@ -284,7 +280,6 @@ export default function LudoBoardOnline2D({ initialMatchId, botThinkMs = 2000 }:
       }
 
       setDiceVal(null);
-
       setTick(t => t + 1);
       await new Promise(r => setTimeout(r, 200));
     }
@@ -303,11 +298,9 @@ export default function LudoBoardOnline2D({ initialMatchId, botThinkMs = 2000 }:
     sync();
   }
 
-  // حساب موضع البيدق على الشبكة
   function getTokenPos(pid: string, tokenIdx: number): [number, number] | null {
     const g = gameRef.current;
-    const colorMap = PLAYER_COLORS;
-    const color = colorMap[pid] ?? "red";
+    const color = PLAYER_COLORS[pid] ?? "red";
     const token = (g.tokens as any)[pid]?.[tokenIdx];
     if (!token) return null;
 
@@ -323,8 +316,6 @@ export default function LudoBoardOnline2D({ initialMatchId, botThinkMs = 2000 }:
     }
     return null;
   }
-
-  const S = "min(90vw, 90vh, 480px)"; // حجم البورد
 
   if (phase === "home") {
     return (
@@ -415,6 +406,15 @@ export default function LudoBoardOnline2D({ initialMatchId, botThinkMs = 2000 }:
   const isMyTurn = currentTurn === "player";
   const canRoll = isMyTurn && diceVal === null && !rolling && !aiThinking;
 
+  // ─── حساب ألوان خلايا المسار لتحديد نقاط البداية ───
+  const TRACK_COLORS: Record<number, string> = {
+    0:  "#dc2626", // red start
+    13: "#d97706", // yellow start
+    26: "#2563eb", // blue start
+    39: "#16a34a", // green start
+  };
+  const SAFE_INDICES = new Set([0, 8, 13, 21, 26, 34, 39, 47]);
+
   return (
     <div style={{
       position: "fixed", inset: 0,
@@ -437,7 +437,6 @@ export default function LudoBoardOnline2D({ initialMatchId, botThinkMs = 2000 }:
           textDecoration: "none",
         }}>← رجوع</a>
 
-        {/* مؤشر الدور */}
         <div style={{
           display: "flex", alignItems: "center", gap: 8,
           padding: "6px 14px", borderRadius: 10,
@@ -454,7 +453,6 @@ export default function LudoBoardOnline2D({ initialMatchId, botThinkMs = 2000 }:
           </span>
         </div>
 
-        {/* زر رجوع */}
         <button onClick={() => setPhase("home")} style={{
           padding: "6px 12px", borderRadius: 10,
           background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)",
@@ -467,65 +465,120 @@ export default function LudoBoardOnline2D({ initialMatchId, botThinkMs = 2000 }:
         width: `clamp(300px, min(96vw, calc(100dvh - 160px)), 540px)`,
         aspectRatio: "1",
         position: "relative",
-        background: "#fff5f0",
         borderRadius: 12,
         border: "3px solid #e2d5ca",
         overflow: "hidden",
         flexShrink: 0,
+        background: "#fff",
       }}>
-        {/* شبكة 15×15 */}
         <svg
           viewBox="0 0 15 15"
           style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
           preserveAspectRatio="xMidYMid meet"
         >
-          {/* خلفية المربعات */}
-          {/* قاعدة كل لون */}
-          <rect x="0" y="0" width="6" height="6" fill="#fecaca" rx="0.5"/>
-          <rect x="9" y="0" width="6" height="6" fill="#fef08a" rx="0.5"/>
-          <rect x="0" y="9" width="6" height="6" fill="#bbf7d0" rx="0.5"/>
-          <rect x="9" y="9" width="6" height="6" fill="#bfdbfe" rx="0.5"/>
+          <defs>
+            <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+              <feDropShadow dx="0.05" dy="0.1" stdDeviation="0.06" floodOpacity="0.4"/>
+            </filter>
+            {/* Clip paths للـ yards — يضمن إن الـ yard ما يطلعش على الـ track cells */}
+            <clipPath id="clip-red-yard">
+              <rect x="0" y="0" width="6" height="6"/>
+            </clipPath>
+            <clipPath id="clip-yellow-yard">
+              <rect x="9" y="0" width="6" height="6"/>
+            </clipPath>
+            <clipPath id="clip-green-yard">
+              <rect x="0" y="9" width="6" height="6"/>
+            </clipPath>
+            <clipPath id="clip-blue-yard">
+              <rect x="9" y="9" width="6" height="6"/>
+            </clipPath>
+          </defs>
 
-          {/* المنتصف */}
+          {/* ١. خلفية بيضاء كاملة */}
+          <rect x="0" y="0" width="15" height="15" fill="#ffffff"/>
+
+          {/* ٢. خلفيات الـ yards (داخل clip paths عشان ما تطغاش على المسار) */}
+          <g clipPath="url(#clip-red-yard)">
+            <rect x="0" y="0" width="6" height="6" fill="#fecaca"/>
+          </g>
+          <g clipPath="url(#clip-yellow-yard)">
+            <rect x="9" y="0" width="6" height="6" fill="#fef08a"/>
+          </g>
+          <g clipPath="url(#clip-green-yard)">
+            <rect x="0" y="9" width="6" height="6" fill="#bbf7d0"/>
+          </g>
+          <g clipPath="url(#clip-blue-yard)">
+            <rect x="9" y="9" width="6" height="6" fill="#bfdbfe"/>
+          </g>
+
+          {/* ٣. منطقة المنتصف (center) */}
           <polygon points="7.5,7.5 6,6 9,6" fill="#fca5a5"/>
           <polygon points="7.5,7.5 6,6 6,9" fill="#fef08a"/>
           <polygon points="7.5,7.5 9,9 6,9" fill="#86efac"/>
           <polygon points="7.5,7.5 9,9 9,6" fill="#93c5fd"/>
 
-          {/* مربعات المسار */}
+          {/* ٤. مربعات المسار الرئيسي — ترسم فوق كل حاجة عشان تطغى على الـ yards */}
           {TRACK.map(([col, row], i) => {
-            let fill = "#fff";
-            if ([0,13,26,39].includes(i)) fill = "#fca5a5";
-            if (i === 0) fill = "#dc2626";
-            if (i === 13) fill = "#d97706";
-            if (i === 26) fill = "#2563eb";
-            if (i === 39) fill = "#16a34a";
+            let fill = "#ffffff";
+            // نقاط البداية بألوانها
+            if (i === 0)  fill = "#dc2626"; // red start
+            if (i === 13) fill = "#d97706"; // yellow start
+            if (i === 26) fill = "#2563eb"; // blue start
+            if (i === 39) fill = "#16a34a"; // green start
+            // المربعات الآمنة بلون فاتح
+            if (SAFE_INDICES.has(i) && i !== 0 && i !== 13 && i !== 26 && i !== 39) {
+              fill = "#e5e7eb";
+            }
             return (
-              <rect key={i} x={col} y={row} width="1" height="1"
-                fill={fill} stroke="#e5e7eb" strokeWidth="0.04"/>
+              <rect
+                key={i}
+                x={col} y={row}
+                width="1" height="1"
+                fill={fill}
+                stroke="#d1d5db"
+                strokeWidth="0.03"
+              />
             );
           })}
 
-          {/* مسارات البيت */}
+          {/* ٥. مسارات البيت (home tracks) */}
           {(["red","yellow","green","blue"] as Color[]).map(c =>
             HOME_TRACK[c].map(([col, row], i) => (
-              <rect key={`h-${c}-${i}`} x={col} y={row} width="1" height="1"
+              <rect
+                key={`h-${c}-${i}`}
+                x={col} y={row}
+                width="1" height="1"
                 fill={i < 5 ? COLOR_STYLES[c].light : COLOR_STYLES[c].bg}
-                stroke="#e5e7eb" strokeWidth="0.04" opacity={0.7}/>
+                stroke="#d1d5db"
+                strokeWidth="0.03"
+                opacity={i < 5 ? 0.8 : 1}
+              />
             ))
           )}
 
-          {/* خانات القاعدة الداخلية */}
+          {/* ٦. مربعات داخل الـ yards (الدوائر الصغيرة) */}
           {(["red","yellow","green","blue"] as Color[]).map(c =>
             YARD_POS[c].map(([col, row], i) => (
-              <rect key={`y-${c}-${i}`} x={col + 0.15} y={row + 0.15}
-                width="0.7" height="0.7"
-                fill={COLOR_STYLES[c].light} stroke={COLOR_STYLES[c].border}
-                strokeWidth="0.08" rx="0.15"/>
+              <rect
+                key={`y-${c}-${i}`}
+                x={col + 0.12} y={row + 0.12}
+                width="0.76" height="0.76"
+                fill={COLOR_STYLES[c].light}
+                stroke={COLOR_STYLES[c].border}
+                strokeWidth="0.08"
+                rx="0.18"
+              />
             ))
           )}
 
-          {/* البيادق */}
+          {/* ٧. حدود خارجية للـ yards */}
+          <rect x="0.06" y="0.06" width="5.88" height="5.88" fill="none" stroke="#fca5a5" strokeWidth="0.12" rx="0.3"/>
+          <rect x="9.06" y="0.06" width="5.88" height="5.88" fill="none" stroke="#fcd34d" strokeWidth="0.12" rx="0.3"/>
+          <rect x="0.06" y="9.06" width="5.88" height="5.88" fill="none" stroke="#86efac" strokeWidth="0.12" rx="0.3"/>
+          <rect x="9.06" y="9.06" width="5.88" height="5.88" fill="none" stroke="#93c5fd" strokeWidth="0.12" rx="0.3"/>
+
+          {/* ٨. البيادق */}
           {(["player", "ai1", "ai2", "ai3"] as string[]).map(pid =>
             [0,1,2,3].map(ti => {
               const pos = getTokenPos(pid, ti);
@@ -554,12 +607,6 @@ export default function LudoBoardOnline2D({ initialMatchId, botThinkMs = 2000 }:
               );
             })
           )}
-
-          <defs>
-            <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-              <feDropShadow dx="0.05" dy="0.1" stdDeviation="0.06" floodOpacity="0.4"/>
-            </filter>
-          </defs>
         </svg>
       </div>
 
@@ -568,7 +615,6 @@ export default function LudoBoardOnline2D({ initialMatchId, botThinkMs = 2000 }:
         width: "100%", maxWidth: 520,
         display: "flex", alignItems: "center", justifyContent: "center", gap: 20,
       }}>
-        {/* النرد */}
         <div
           onClick={canRoll ? roll : undefined}
           style={{
@@ -595,7 +641,6 @@ export default function LudoBoardOnline2D({ initialMatchId, botThinkMs = 2000 }:
           )}
         </div>
 
-        {/* رسالة الحالة */}
         <div style={{ flex: 1, textAlign: "center" }}>
           {msg ? (
             <motion.div
@@ -612,7 +657,6 @@ export default function LudoBoardOnline2D({ initialMatchId, botThinkMs = 2000 }:
           )}
         </div>
 
-        {/* قائمة اللاعبين */}
         <div style={{ display: "flex", gap: 6 }}>
           {(["player","ai1","ai2","ai3"] as string[]).map(pid => {
             const color = PLAYER_COLORS[pid];
