@@ -193,6 +193,9 @@ export default function BalootBoard2D({ botThinkMs = 2000, autoStartAi = false }
   const [abilityUsed, setAbilityUsed] = React.useState<PlayerId | null>(null);
   const [tableRotation, setTableRotation] = React.useState(0);
   const [isAiGame, setIsAiGame] = React.useState(false);
+  // تاريخ التريكات — كل تريك كامل يتحفظ هنا كطبقة فوق التانية
+  const [trickHistory, setTrickHistory] = React.useState<Array<{ id: number; cards: Record<string, Card>; winner?: string }>>([]);
+  const trickCounterRef = React.useRef(0);
 
   // Character System State
   const [myCharacter, setMyCharacter] = React.useState<CharacterType | null>(null);
@@ -218,6 +221,17 @@ export default function BalootBoard2D({ botThinkMs = 2000, autoStartAi = false }
       return (targetIdx - meIdx + 4) % 4;
   }
 
+  // دالة لحفظ التريك الحالي في التاريخ لما يكتمل
+  const captureTrick = React.useCallback(() => {
+    const currentCards = { ...game.trick.cards };
+    if (Object.keys(currentCards).length === 0) return;
+    trickCounterRef.current += 1;
+    setTrickHistory(prev => [
+      ...prev,
+      { id: trickCounterRef.current, cards: currentCards }
+    ]);
+  }, [game]);
+
   const onPlayed = React.useCallback(({ side, card }: { side: PlayerId, card: Card }) => {
         // Animation
         const startPos = getRelativePos(side, mySide || "S"); 
@@ -240,7 +254,14 @@ export default function BalootBoard2D({ botThinkMs = 2000, autoStartAi = false }
         setFly({ card, x: startX, y: startY, toX: endX + 100, toY: endY + 100, rotate: Math.random() * 20 - 10 });
         
         setTimeout(() => setFly(null), 500);
-  }, [mySide]);
+
+        // لو بعد لعب الكرت ده التريك اتكمل (4 كروت)، احفظه في التاريخ
+        setTimeout(() => {
+          if (Object.keys(game.trick.cards).length === 4) {
+            captureTrick();
+          }
+        }, 50);
+  }, [mySide, game, captureTrick]);
 
   // --- AI Bidding Loop (منفصل ومستقل) ---
   React.useEffect(() => {
@@ -418,6 +439,8 @@ export default function BalootBoard2D({ botThinkMs = 2000, autoStartAi = false }
       game.players = ["N", "E", "S", "W"];
       game.dealer = "N";
       game.startRound();
+      setTrickHistory([]);
+      trickCounterRef.current = 0;
 
       setIsAiGame(true);
       setMySide("S");
@@ -506,9 +529,9 @@ export default function BalootBoard2D({ botThinkMs = 2000, autoStartAi = false }
         if (success) {
             onPlayed({ side: "S", card });
             
-            // لو كان التريك 3 كروت وبعد اللعب اتمسح، اعرض frozen لثانية
+            // لو التريك كان 3 كروت وبعد اللعبة اتمسح → احفظ التريك في التاريخ
             if (trickSizeBefore === 3 && Object.keys(game.trick.cards).length === 0) {
-                // اللعبة حذفت التريك — مش محتاجين frozenTrick هنا لأن onPlayed بيعرض الكرت
+                captureTrick();
             }
             
             setTurn(game.next);
@@ -897,53 +920,240 @@ export default function BalootBoard2D({ botThinkMs = 2000, autoStartAi = false }
                 className="relative w-full flex items-center justify-center px-1"
                 style={{ height: "clamp(220px, min(80vw, 48vh), 580px)", maxHeight: "calc(100dvh - 200px)" }}
              >
-                {/* 3D Table Surface */}
-                <div className={`
-                    absolute inset-x-2 inset-y-1 md:inset-x-4 md:inset-y-2
-                    ${getTableStyle()}
-                    flex items-center justify-center
-                    overflow-hidden
-                `}>
-                     {/* Felt / Carpet */}
-                     <div className="absolute inset-0 bg-[#0f3d2e]">
-                         <div 
-                           className={`absolute inset-0 ${getTableTexture()}`} 
-                           style={(() => {
-                             if (equipped.baloot_skin === "neon") return {};
-                             const m = equipped.baloot_skin;
-                             const src = m === "luxury" ? carpetMasterImg.src : m === "classic" ? carpetClassicImg.src : carpetSkinImg.src;
-                             return { backgroundImage: `url(${src})`, backgroundSize: "100% 100%", backgroundRepeat: "no-repeat", backgroundPosition: "center" };
-                           })()} 
-                         />
-                         <div className="absolute inset-0 bg-radial-gradient from-transparent to-black/50" />
-                     </div>
-                     
-                     {/* Center Logo / Pattern */}
-                     <div className="absolute w-64 h-64 opacity-10 rounded-full border-4 border-[#d4af37] flex items-center justify-center">
-                        <div className="text-8xl text-[#d4af37]">♠</div>
-                     </div>
+                {/* ━━━ خيمة بلوت العربية ━━━ */}
+                <div className="absolute inset-x-2 inset-y-1 md:inset-x-4 md:inset-y-2 overflow-hidden" style={{ borderRadius: "2rem" }}>
+                  <svg
+                    viewBox="0 0 800 480"
+                    preserveAspectRatio="xMidYMid slice"
+                    className="absolute inset-0 w-full h-full"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <defs>
+                      {/* تدرجات الألوان */}
+                      <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#0a0514"/>
+                        <stop offset="100%" stopColor="#1a0a2e"/>
+                      </linearGradient>
+                      <linearGradient id="tentBodyGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#8B1a1a"/>
+                        <stop offset="40%" stopColor="#6b1010"/>
+                        <stop offset="100%" stopColor="#3d0808"/>
+                      </linearGradient>
+                      <linearGradient id="tentStripeGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#d4af37"/>
+                        <stop offset="100%" stopColor="#a07820"/>
+                      </linearGradient>
+                      <linearGradient id="groundGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#2a1800"/>
+                        <stop offset="100%" stopColor="#1a0e00"/>
+                      </linearGradient>
+                      <linearGradient id="carpetGrad" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" stopColor="#1a0a2e"/>
+                        <stop offset="50%" stopColor="#2d1060"/>
+                        <stop offset="100%" stopColor="#1a0a2e"/>
+                      </linearGradient>
+                      <linearGradient id="lampGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#d4af37"/>
+                        <stop offset="100%" stopColor="#7a5a00"/>
+                      </linearGradient>
+                      <radialGradient id="lampGlow" cx="50%" cy="50%" r="50%">
+                        <stop offset="0%" stopColor="#fffbe0" stopOpacity="0.9"/>
+                        <stop offset="100%" stopColor="#d4af37" stopOpacity="0"/>
+                      </radialGradient>
+                      <radialGradient id="centerGlow" cx="50%" cy="50%" r="50%">
+                        <stop offset="0%" stopColor="#d4af37" stopOpacity="0.08"/>
+                        <stop offset="100%" stopColor="#d4af37" stopOpacity="0"/>
+                      </radialGradient>
+                      <filter id="softGlow">
+                        <feGaussianBlur stdDeviation="3" result="blur"/>
+                        <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+                      </filter>
+                      <pattern id="arabPattern" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
+                        <path d="M20 0 L40 20 L20 40 L0 20 Z" fill="none" stroke="#d4af37" strokeWidth="0.4" opacity="0.25"/>
+                        <circle cx="20" cy="20" r="3" fill="none" stroke="#d4af37" strokeWidth="0.4" opacity="0.2"/>
+                        <path d="M0 0 L10 10 M30 10 L40 0 M0 40 L10 30 M30 30 L40 40" stroke="#d4af37" strokeWidth="0.3" opacity="0.15"/>
+                      </pattern>
+                      <pattern id="carpetPattern" x="0" y="0" width="60" height="60" patternUnits="userSpaceOnUse">
+                        <rect width="60" height="60" fill="none"/>
+                        <path d="M30 5 L55 30 L30 55 L5 30 Z" fill="none" stroke="#d4af37" strokeWidth="0.8" opacity="0.3"/>
+                        <path d="M30 15 L45 30 L30 45 L15 30 Z" fill="none" stroke="#c084fc" strokeWidth="0.5" opacity="0.2"/>
+                        <circle cx="30" cy="30" r="4" fill="none" stroke="#d4af37" strokeWidth="0.6" opacity="0.25"/>
+                        <path d="M30 0 L30 10 M60 30 L50 30 M30 60 L30 50 M0 30 L10 30" stroke="#d4af37" strokeWidth="0.4" opacity="0.2"/>
+                      </pattern>
+                    </defs>
 
-                     {/* Table Decorations */}
-                     {equipped.baloot_skin !== "neon" && (
-                         <>
-                             {/* Coffee Dallah - Top Right */}
-                             <div className="absolute top-10 right-20 opacity-90 pointer-events-none transform -rotate-12 drop-shadow-2xl">
-                                 <div className="text-7xl filter brightness-75 contrast-125">🫖</div>
-                             </div>
-                             {/* Coffee Cup */}
-                             <div className="absolute top-28 right-36 opacity-90 pointer-events-none drop-shadow-xl">
-                                 <div className="text-4xl filter brightness-90">☕</div>
-                             </div>
-                             {/* Rosary (Misbaha) - Bottom Left */}
-                             <div className="absolute bottom-12 left-16 opacity-80 pointer-events-none transform rotate-45 drop-shadow-2xl">
-                                 <div className="text-6xl text-amber-900">📿</div>
-                             </div>
-                             {/* Lantern - Top Left hanging */}
-                             <div className="absolute -top-10 left-24 opacity-100 pointer-events-none animate-pulse">
-                                 <div className="text-6xl drop-shadow-[0_20px_40px_rgba(251,191,36,0.3)]">🏮</div>
-                             </div>
-                         </>
-                     )}
+                    {/* ── خلفية السماء الليلية ── */}
+                    <rect width="800" height="480" fill="url(#skyGrad)"/>
+
+                    {/* نجوم صغيرة */}
+                    {[
+                      [60,30],[120,15],[200,45],[320,20],[480,35],[600,18],[700,42],[750,25],
+                      [90,80],[180,65],[350,75],[520,60],[660,85],[40,120],[780,100]
+                    ].map(([x,y],i)=>(
+                      <circle key={i} cx={x} cy={y} r={i%3===0?1.5:1} fill="white" opacity={0.4+i%3*0.2}/>
+                    ))}
+
+                    {/* ── جسم الخيمة الرئيسي ── */}
+                    {/* الظل الخلفي للخيمة */}
+                    <path d="M -20 480 L 80 160 L 400 80 L 720 160 L 820 480 Z"
+                      fill="#1a0505" opacity="0.6"/>
+
+                    {/* جسم الخيمة */}
+                    <path d="M 0 480 L 90 170 L 400 90 L 710 170 L 800 480 Z"
+                      fill="url(#tentBodyGrad)"/>
+
+                    {/* خطوط الشرائط الذهبية على الخيمة */}
+                    {[0.22, 0.38, 0.62, 0.78].map((t, i) => {
+                      const x = 400;
+                      const topY = 90;
+                      // نقاط على حافتي الخيمة
+                      const lx = 90 + (400-90)*t*0 | 0;
+                      const rx = 710 - (710-400)*t*0 | 0;
+                      return (
+                        <line key={i}
+                          x1={90 + (400-90)*t}
+                          y1={170 + (90-170)*t + 480*t*0.5}
+                          x2={90 + (400-90)*t}
+                          y2={480}
+                          stroke="#d4af37" strokeWidth="1.5" opacity="0.35"
+                        />
+                      );
+                    })}
+
+                    {/* شرائط ذهبية أفقية على الخيمة */}
+                    <path d="M 105 260 Q 400 220 695 260" fill="none" stroke="#d4af37" strokeWidth="2" opacity="0.4"/>
+                    <path d="M 135 340 Q 400 305 665 340" fill="none" stroke="#d4af37" strokeWidth="1.5" opacity="0.3"/>
+                    <path d="M 55 180 Q 400 145 745 180" fill="none" stroke="#d4af37" strokeWidth="2.5" opacity="0.5"/>
+
+                    {/* زخرفة عريبية على رأس الخيمة */}
+                    <path d="M 400 90 L 390 110 L 400 105 L 410 110 Z" fill="#d4af37" opacity="0.9"/>
+                    <circle cx="400" cy="85" r="6" fill="#d4af37" opacity="0.9"/>
+                    <circle cx="400" cy="78" r="3" fill="#fff" opacity="0.7"/>
+                    {/* خطوط من القمة */}
+                    {[-40,-20,0,20,40].map((dx,i)=>(
+                      <line key={i} x1={400} y1={90} x2={400+dx*5} y2={140}
+                        stroke="#d4af37" strokeWidth="1" opacity="0.3"/>
+                    ))}
+
+                    {/* ── الزخرفة على حواف الخيمة ── */}
+                    {/* فرينج / شراريب على الحافة السفلية للسقف */}
+                    {Array.from({length:25}).map((_,i)=>{
+                      const progress = i/24;
+                      const x = 90 + progress*(710-90);
+                      const baseY = 170 + (progress < 0.5 ? (0.5-progress)*2*(90-170) : (progress-0.5)*2*(90-170));
+                      // خط بسيط من الحافة للأسفل
+                      return (
+                        <line key={i}
+                          x1={x} y1={baseY+2}
+                          x2={x + (i%2===0?0:3)} y2={baseY+14}
+                          stroke="#d4af37" strokeWidth="1.2" opacity="0.6"
+                        />
+                      );
+                    })}
+
+                    {/* ── نمط عربي على الأرضية ── */}
+                    <rect x="0" y="300" width="800" height="180" fill="url(#groundGrad)"/>
+
+                    {/* سجادة المجلس */}
+                    <rect x="60" y="310" width="680" height="155" rx="8"
+                      fill="url(#carpetGrad)"/>
+                    <rect x="60" y="310" width="680" height="155" rx="8"
+                      fill="url(#carpetPattern)" opacity="0.9"/>
+                    {/* إطار السجادة */}
+                    <rect x="60" y="310" width="680" height="155" rx="8"
+                      fill="none" stroke="#d4af37" strokeWidth="2.5" opacity="0.6"/>
+                    <rect x="70" y="318" width="660" height="139" rx="6"
+                      fill="none" stroke="#d4af37" strokeWidth="1" opacity="0.3"/>
+
+                    {/* نمط عربي عام كـ overlay */}
+                    <rect x="0" y="0" width="800" height="480"
+                      fill="url(#arabPattern)" opacity="0.5"/>
+
+                    {/* ── فانوس معلق في المنتصف ── */}
+                    {/* الخيط */}
+                    <line x1="400" y1="90" x2="400" y2="145" stroke="#d4af37" strokeWidth="1.5" opacity="0.8"/>
+
+                    {/* ضوء الفانوس */}
+                    <ellipse cx="400" cy="175" rx="55" ry="55"
+                      fill="url(#lampGlow)" opacity="0.5"/>
+
+                    {/* جسم الفانوس */}
+                    <g transform="translate(400, 165)" filter="url(#softGlow)">
+                      {/* القاعدة العلوية */}
+                      <path d="M -10 -22 L 10 -22 L 14 -14 L -14 -14 Z" fill="url(#lampGrad)"/>
+                      {/* الجسم الرئيسي */}
+                      <path d="M -14 -14 L -18 8 L -12 20 L 12 20 L 18 8 L 14 -14 Z"
+                        fill="url(#lampGrad)" stroke="#a07820" strokeWidth="0.5"/>
+                      {/* زجاج متوهج */}
+                      <path d="M -13 -13 L -16 8 L -11 18 L 11 18 L 16 8 L 13 -13 Z"
+                        fill="#fffbe0" opacity="0.15"/>
+                      {/* خطوط الفانوس */}
+                      {[-8,0,8].map((dx,i)=>(
+                        <line key={i} x1={dx} y1={-14} x2={dx} y2={20}
+                          stroke="#a07820" strokeWidth="0.8" opacity="0.7"/>
+                      ))}
+                      {/* القاعدة السفلية */}
+                      <path d="M -12 20 L -8 28 L 8 28 L 12 20 Z" fill="url(#lampGrad)"/>
+                      <ellipse cx="0" cy="28" rx="5" ry="2" fill="#d4af37" opacity="0.8"/>
+                    </g>
+
+                    {/* ── فوانيس صغيرة جانبية ── */}
+                    {[{x:160,y:155},{x:640,y:155}].map((pos,i)=>(
+                      <g key={i} transform={`translate(${pos.x}, ${pos.y})`}>
+                        <line x1="0" y1="-60" x2="0" y2="-18" stroke="#d4af37" strokeWidth="1" opacity="0.6"/>
+                        <ellipse cx="0" cy="0" rx="30" ry="30" fill="url(#lampGlow)" opacity="0.3"/>
+                        <path d="M -7 -18 L 7 -18 L 9 -12 L -9 -12 Z" fill="url(#lampGrad)" opacity="0.9"/>
+                        <path d="M -9 -12 L -11 4 L -7 12 L 7 12 L 11 4 L 9 -12 Z"
+                          fill="url(#lampGrad)" stroke="#a07820" strokeWidth="0.4" opacity="0.9"/>
+                        <path d="M -7 12 L -5 18 L 5 18 L 7 12 Z" fill="url(#lampGrad)" opacity="0.9"/>
+                      </g>
+                    ))}
+
+                    {/* ── توهج المنتصف (جوه الخيمة) ── */}
+                    <ellipse cx="400" cy="320" rx="300" ry="120"
+                      fill="url(#centerGlow)" opacity="0.6"/>
+
+                    {/* ── ديكورات إضافية ── */}
+                    {/* وسادات / مقاعد */}
+                    {[{x:130,w:100},{x:340,w:120},{x:580,w:100}].map((p,i)=>(
+                      <g key={i}>
+                        <ellipse cx={p.x+p.w/2} cy={420} rx={p.w/2} ry={14}
+                          fill="#4a1060" stroke="#d4af37" strokeWidth="1" opacity="0.7"/>
+                        <ellipse cx={p.x+p.w/2} cy={414} rx={p.w/2-4} ry={10}
+                          fill="#6b1090" opacity="0.6"/>
+                        <line x1={p.x+20} y1={414} x2={p.x+p.w-20} y2={414}
+                          stroke="#d4af37" strokeWidth="0.8" opacity="0.4"/>
+                      </g>
+                    ))}
+
+                    {/* إبريق قهوة */}
+                    <g transform="translate(695, 370)" opacity="0.8">
+                      <ellipse cx="0" cy="22" rx="18" ry="6" fill="#1a0e00" opacity="0.5"/>
+                      <path d="M -10 20 Q -12 0 -5 -15 Q 0 -22 5 -15 Q 12 0 10 20 Z"
+                        fill="#8B4513" stroke="#d4af37" strokeWidth="0.8"/>
+                      <path d="M 10 5 Q 20 5 20 12 Q 20 18 10 15" fill="none" stroke="#8B4513" strokeWidth="3"/>
+                      <ellipse cx="0" cy="-16" rx="6" ry="3" fill="#6B3410"/>
+                      <path d="M 0 -19 Q 0 -28 3 -32" fill="none" stroke="#8B4513" strokeWidth="1.5"/>
+                    </g>
+
+                    {/* فنجان */}
+                    <g transform="translate(650, 388)" opacity="0.8">
+                      <path d="M -8 12 Q -10 0 -6 -8 L 6 -8 Q 10 0 8 12 Z"
+                        fill="#fff8e1" stroke="#d4af37" strokeWidth="0.6"/>
+                      <ellipse cx="0" cy="12" rx="8" ry="3" fill="#e0c84a" opacity="0.8"/>
+                      <path d="M 8 0 Q 14 0 14 5 Q 14 10 8 8" fill="none" stroke="#d4af37" strokeWidth="1.2"/>
+                    </g>
+
+                    {/* مسبحة */}
+                    <g transform="translate(108, 375)" opacity="0.75">
+                      <path d="M 0 0 Q 15 -20 5 -40 Q -5 -55 0 -70" fill="none" stroke="#4a2060" strokeWidth="1.5"/>
+                      {[0,10,20,30,40,50,58,65].map((t,i)=>{
+                        const y = -t;
+                        const x = t < 35 ? t*0.2 : (t-35)*(-0.3)+7;
+                        return <circle key={i} cx={x} cy={y} r="3" fill="#7b2d8b" stroke="#9b4dab" strokeWidth="0.5"/>;
+                      })}
+                    </g>
+                  </svg>
                 </div>
 
                 {/* Dealing Animation (Flying Cards) */}
@@ -985,11 +1195,48 @@ export default function BalootBoard2D({ botThinkMs = 2000, autoStartAi = false }
 
                 {/* Center Trick Area */}
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none" ref={centerAreaRef}>
-                    <div className="relative w-56 h-56 md:w-64 md:h-64 rounded-full border border-white/5 bg-black/20 backdrop-blur-[1px] flex items-center justify-center">
-                         {/* Played Cards */}
-                         <AnimatePresence>
-                             {Object.entries(activeTrick).map(([pid, card]) => {
-                                 if (!card) return null;
+                <div className="relative w-56 h-56 md:w-64 md:h-64 rounded-full border border-white/5 bg-black/20 backdrop-blur-[1px] flex items-center justify-center">
+
+                {/* ━━━ طبقات التريكات السابقة (تظهر كطبقات فوق بعض) ━━━ */}
+                {trickHistory.map((trick, histIdx) => (
+                <div key={trick.id} className="absolute inset-0 pointer-events-none">
+                {Object.entries(trick.cards).map(([pid, card], cardIdx) => {
+                if (!card) return null;
+                // كل تريك بياخد offset بسيط عشان يبان الطبقات
+                const stackOffset = (histIdx % 6) * 2;
+                const angle = (histIdx * 17 + cardIdx * 7) % 30 - 15;
+                const relPos = getRelativePos(pid as PlayerId, mySide || "S");
+                const xOffset = relPos === 0 ? 0 : relPos === 1 ? -28 : relPos === 2 ? 0 : 28;
+                const yOffset = relPos === 0 ? 26 : relPos === 1 ? 0 : relPos === 2 ? -26 : 0;
+                return (
+                <div
+                  key={`${trick.id}-${pid}`}
+                  className="absolute"
+                style={{
+                left: "50%",
+                top: "50%",
+                transform: `translate(calc(-50% + ${xOffset + stackOffset}px), calc(-50% + ${yOffset + stackOffset}px)) rotate(${angle}deg)`,
+                opacity: Math.max(0.15, 0.6 - (trickHistory.length - 1 - histIdx) * 0.12),
+                zIndex: histIdx,
+                }}
+                >
+                <ProfessionalCard
+                suit={card.suit}
+                rank={card.rank}
+                width={70}
+                height={105}
+                skin={skinName}
+                />
+                </div>
+                );
+                })}
+                </div>
+                ))}
+
+                {/* ━━━ الكروت الحالية في التريك ━━━ */}
+                <AnimatePresence>
+                {Object.entries(activeTrick).map(([pid, card]) => {
+                        if (!card) return null;
                                  
                                  const relPos = getRelativePos(pid as PlayerId, mySide || "S");
                                  // 0: Bottom, 1: Left, 2: Top, 3: Right
@@ -1014,7 +1261,7 @@ export default function BalootBoard2D({ botThinkMs = 2000, autoStartAi = false }
                                          }}
                                          exit={{ opacity: 0, scale: 0.5, y: 0, x: 0 }}
                                          transition={{ type: "spring", damping: 15, stiffness: 200 }}
-                                         className="absolute z-10"
+                                         className="absolute z-30"
                                      >
                                          <ProfessionalCard 
                                             suit={card.suit} 

@@ -79,6 +79,7 @@ export default function LudoBoardOnline2D({ initialMatchId, botThinkMs = 2000 }:
   const [aiThinking, setAiThinking] = useState(false);
   const [animatingToken, setAnimatingToken] = useState<{pid:string;ti:number;path:[number,number][]}|null>(null);
   const aiRunningRef = useRef(false);
+  const animatingRef = useRef(false);
 
   const g = gameRef.current;
 
@@ -168,32 +169,40 @@ export default function LudoBoardOnline2D({ initialMatchId, botThinkMs = 2000 }:
     return path.filter(Boolean);
   }
 
-  async function animateMoveToken(pid: string, ti: number, d: number) {
-    const token = (g.tokens as any)[pid][ti] as any;
-    const color = PLAYER_COLORS[pid];
+  async function animateMoveToken(pid: string, ti: number, d: number): Promise<void> {
+    const gCur = gameRef.current;
+    const token = (gCur.tokens as any)[pid][ti] as any;
+    const color = PLAYER_COLORS[pid] as Color;
 
+    // حركة من الـ yard للمسار عند 6
     if (token.pos.kind === "yard" && d === 6) {
-      const startPos = { player:0, ai1:13, ai2:26, ai3:39 }[pid] ?? 0;
+      const startPos = ({ player:0, ai1:13, ai2:26, ai3:39 } as any)[pid] ?? 0;
       token.pos = { kind: "track", index: startPos };
       eatOpponents(pid, startPos);
       sync();
+      await new Promise(r => setTimeout(r, 80));
       return;
     }
 
+    // حركة على المسار — block by block
     if (token.pos.kind === "track") {
       const startIdx = token.pos.index;
-      const path = buildPath(startIdx, d, color);
-      setAnimatingToken({ pid, ti, path });
+      const ENTRY_MAP: Record<string, number> = { player: 51, ai1: 12, ai2: 25, ai3: 38 };
+      const entryIdx = ENTRY_MAP[pid] ?? 51;
+      const distToEntry = (entryIdx - startIdx + 52) % 52;
 
-      for (let step = 0; step < path.length; step++) {
-        const nextIdx = startIdx + step + 1;
-        if (nextIdx >= 52) {
-          token.pos = { kind: "home", count: nextIdx - 51 };
-        } else {
+      for (let step = 1; step <= d; step++) {
+        if (step <= distToEntry) {
+          // ما زلنا على المسار الرئيسي
+          const nextIdx = (startIdx + step) % 52;
           token.pos = { kind: "track", index: nextIdx };
+        } else {
+          // دخلنا مسار البيت
+          const homeStep = step - distToEntry;
+          token.pos = { kind: "home", count: homeStep };
         }
         sync();
-        await new Promise(r => setTimeout(r, 120));
+        await new Promise(r => setTimeout(r, 130));
       }
 
       if (token.pos.kind === "track") {
@@ -203,45 +212,73 @@ export default function LudoBoardOnline2D({ initialMatchId, botThinkMs = 2000 }:
       return;
     }
 
-    if (token.pos.kind === "home" && token.pos.count + d <= 6) {
-      token.pos = { kind: "home", count: token.pos.count + d };
-      sync();
+    // حركة داخل مسار البيت — block by block
+    if (token.pos.kind === "home") {
+      const startCount = token.pos.count;
+      for (let step = 1; step <= d; step++) {
+        const newCount = startCount + step;
+        if (newCount > 6) break;
+        token.pos = { kind: "home", count: newCount };
+        sync();
+        await new Promise(r => setTimeout(r, 130));
+      }
     }
   }
 
   function moveToken(tokenIdx: number) {
-    const d = g.dice;
+    if (animatingRef.current) return;
+    const gCur = gameRef.current;
+    const d = gCur.dice;
     if (!d) return;
-    const beforePlayerTurn = g.turn;
+
+    const beforePlayerTurn = gCur.turn;
     const beforeYard = {
       ai1: countYard("ai1"),
       ai2: countYard("ai2"),
       ai3: countYard("ai3"),
     };
-    const moved = g.move("player", tokenIdx);
+
+    // حفظ state البيدق قبل الحركة عشان الأنيميشن يبدأ منه
+    const tokenBefore = JSON.parse(JSON.stringify((gCur.tokens as any)["player"][tokenIdx]));
+
+    // تنفيذ الحركة في المنطق (يحرك البيدق فوراً في الـ game state)
+    const moved = gCur.move("player", tokenIdx);
     if (!moved) return;
+
+    const afterTurn = gCur.turn;
+    const ate = countYard("ai1") > beforeYard.ai1 || countYard("ai2") > beforeYard.ai2 || countYard("ai3") > beforeYard.ai3;
+    const ended = gCur.status().ended;
+    const bonusTurn = d === 6 && afterTurn === beforePlayerTurn;
 
     setDiceVal(null);
     setValidTokens([]);
-    if (countYard("ai1") > beforeYard.ai1 || countYard("ai2") > beforeYard.ai2 || countYard("ai3") > beforeYard.ai3) {
-      showMsg("🍽️ أكلت بيدق خصم!");
-    }
 
-    const st = g.status();
-    if (st.ended) {
-      setWinner(st.winner ?? "player");
-      setPhase("ended");
-      sync();
-      return;
-    }
-
-    if (d === 6 && g.turn === beforePlayerTurn) {
-      showMsg("🎲 6! ارمي مرة تانية!");
-      sync();
-      return;
-    }
+    // استرجاع state البيدق للأنيميشن (نرجعه لمكانه الأصلي ونعمل الأنيميشن)
+    const tokenForAnim = (gCur.tokens as any)["player"][tokenIdx];
+    const finalPos = { ...tokenForAnim.pos };
+    tokenForAnim.pos = tokenBefore.pos; // نرجعه مؤقتاً
     sync();
-    if (g.turn !== "player") runAI();
+
+    animatingRef.current = true;
+    animateMoveToken("player", tokenIdx, d).then(() => {
+      // تأكد إن البيدق وصل للمكان الصح
+      tokenForAnim.pos = finalPos;
+      animatingRef.current = false;
+      sync();
+
+      if (ate) showMsg("🍽️ أكلت بيدق خصم!");
+
+      if (ended) {
+        setWinner(gCur.status().winner ?? "player");
+        setPhase("ended");
+        return;
+      }
+      if (bonusTurn) {
+        showMsg("🎲 6! ارمي مرة تانية!");
+        return;
+      }
+      if (gCur.turn !== "player") runAI();
+    });
   }
 
   const runAI = useCallback(async () => {
@@ -633,9 +670,20 @@ export default function LudoBoardOnline2D({ initialMatchId, botThinkMs = 2000 }:
           }}
         >
           {diceVal ? (
-            <span style={{ fontSize: "clamp(24px,5vw,32px)" }}>
-              {["", "⚀", "⚁", "⚂", "⚃", "⚄", "⚅"][diceVal]}
-            </span>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
+              <span style={{ fontSize: "clamp(20px,4vw,26px)", lineHeight: 1 }}>
+                {["", "⚀", "⚁", "⚂", "⚃", "⚄", "⚅"][diceVal]}
+              </span>
+              <span style={{
+                fontSize: "clamp(10px,2vw,13px)",
+                fontWeight: 900,
+                color: rolling ? "#94a3b8" : "#0f172a",
+                lineHeight: 1,
+                letterSpacing: "0.05em",
+              }}>
+                {diceVal}
+              </span>
+            </div>
           ) : (
             <span style={{ fontSize: "clamp(18px,4vw,24px)", opacity: canRoll ? 0.8 : 0.3 }}>🎲</span>
           )}
