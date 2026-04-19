@@ -1,7 +1,8 @@
 "use client";
 // ═══════════════════════════════════════════════════════════
-//  YALA EDITOR — 3D Canvas (Three.js) — Full Fix v4
-//  إصلاح المشكلة: كل objects بتظهر صح — مش بس اللاعب
+//  YALA EDITOR — 3D Canvas (Three.js) — Full Fix v5 (merged)
+//  ✅ pendingDropRef في handleCanvasClick
+//  ✅ كل objects بتظهر صح — obj.id كـ Map key
 // ═══════════════════════════════════════════════════════════
 import React, { useEffect, useRef } from "react";
 import * as THREE from "three";
@@ -245,7 +246,6 @@ function buildObject3D(obj: GameObject): THREE.Object3D {
   const spriteKey: string = (obj as any).spriteKey || "";
   const assetScale: number = (obj as any).assetScale ?? 1;
 
-  // مكتبة الأصول 3D
   const assetDef = ASSET_LIBRARY.find(a => a.id === spriteKey);
   if (assetDef) {
     const group = assetDef.build();
@@ -253,12 +253,10 @@ function buildObject3D(obj: GameObject): THREE.Object3D {
     return group;
   }
 
-  // شخصيات خاصة
   if (spriteKey === "enemy_slime")    return buildSlime();
   if (spriteKey === "enemy_skeleton") return buildSkeleton();
   if (spriteKey === "boss_dragon")    return buildDragon();
 
-  // شخصيات بشرية
   if ((spriteKey && CHAR_COLORS[spriteKey]) ||
       (!spriteKey && (obj.type === "player" || obj.type === "enemy" || obj.type === "npc"))) {
     const key = spriteKey || (obj.type === "enemy" ? "enemy_slime" : obj.type === "npc" ? "npc_merchant" : "hero_warrior");
@@ -268,156 +266,93 @@ function buildObject3D(obj: GameObject): THREE.Object3D {
     return group;
   }
 
-  // Platform — صندوق أفقي
   if (obj.type === "platform") {
     const w = Math.max(1.0, obj.width / 60);
-    const mesh = new THREE.Mesh(
-      new THREE.BoxGeometry(w, 0.3, 0.8),
-      new THREE.MeshLambertMaterial({ color: 0x2563eb })
-    );
-    mesh.castShadow = true; mesh.receiveShadow = true;
-    return mesh;
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, 0.3, 0.8), new THREE.MeshLambertMaterial({ color: 0x2563eb }));
+    mesh.castShadow = true; mesh.receiveShadow = true; return mesh;
   }
-
-  // Wall — صندوق عمودي
   if (obj.type === "wall") {
-    const w = Math.max(0.4, obj.width / 60);
-    const h = Math.max(1.0, obj.height / 60);
-    const mesh = new THREE.Mesh(
-      new THREE.BoxGeometry(w, h, 0.4),
-      new THREE.MeshLambertMaterial({ color: 0x64748b })
-    );
-    mesh.castShadow = true; mesh.receiveShadow = true;
-    return mesh;
+    const w = Math.max(0.4, obj.width / 60), h = Math.max(1.0, obj.height / 60);
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.4), new THREE.MeshLambertMaterial({ color: 0x64748b }));
+    mesh.castShadow = true; mesh.receiveShadow = true; return mesh;
   }
-
-  // Collectible — نجمة ذهبية
   if (obj.type === "collectible") {
     const grp = new THREE.Group();
-    const star = new THREE.Mesh(new THREE.OctahedronGeometry(0.4, 0),
-      new THREE.MeshLambertMaterial({ color: 0xfbbf24, emissive: 0xf59e0b, emissiveIntensity: 0.7 }));
+    const star = new THREE.Mesh(new THREE.OctahedronGeometry(0.4, 0), new THREE.MeshLambertMaterial({ color: 0xfbbf24, emissive: 0xf59e0b, emissiveIntensity: 0.7 }));
     star.rotation.y = Math.PI / 4;
-    const glow = new THREE.Mesh(new THREE.SphereGeometry(0.55, 8, 8),
-      new THREE.MeshLambertMaterial({ color: 0xfde68a, transparent: true, opacity: 0.2 }));
-    grp.add(star, glow);
-    return grp;
+    const glow = new THREE.Mesh(new THREE.SphereGeometry(0.55, 8, 8), new THREE.MeshLambertMaterial({ color: 0xfde68a, transparent: true, opacity: 0.2 }));
+    grp.add(star, glow); return grp;
   }
-
-  // Spawn — علم أخضر
   if (obj.type === "spawn") {
     const grp = new THREE.Group();
-    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.0, 6),
-      new THREE.MeshLambertMaterial({ color: 0x9ca3af }));
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.0, 6), new THREE.MeshLambertMaterial({ color: 0x9ca3af }));
     pole.position.y = 1.0; grp.add(pole);
-    const flag = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.4, 0.06),
-      new THREE.MeshLambertMaterial({ color: 0x84cc16 }));
-    flag.position.set(0.35, 1.85, 0); grp.add(flag);
-    return grp;
+    const flag = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.4, 0.06), new THREE.MeshLambertMaterial({ color: 0x84cc16 }));
+    flag.position.set(0.35, 1.85, 0); grp.add(flag); return grp;
   }
-
-  // Goal — علم برتقالي مع نجمة
   if (obj.type === "goal") {
     const grp = new THREE.Group();
-    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.0, 6),
-      new THREE.MeshLambertMaterial({ color: 0x9ca3af }));
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.0, 6), new THREE.MeshLambertMaterial({ color: 0x9ca3af }));
     pole.position.y = 1.0; grp.add(pole);
-    const flag = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.4, 0.06),
-      new THREE.MeshLambertMaterial({ color: 0xf97316 }));
+    const flag = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.4, 0.06), new THREE.MeshLambertMaterial({ color: 0xf97316 }));
     flag.position.set(0.35, 1.85, 0); grp.add(flag);
-    const star = new THREE.Mesh(new THREE.OctahedronGeometry(0.22, 0),
-      new THREE.MeshLambertMaterial({ color: 0xfbbf24, emissive: 0xfbbf24, emissiveIntensity: 0.5 }));
-    star.position.y = 2.3; grp.add(star);
-    return grp;
+    const star = new THREE.Mesh(new THREE.OctahedronGeometry(0.22, 0), new THREE.MeshLambertMaterial({ color: 0xfbbf24, emissive: 0xfbbf24, emissiveIntensity: 0.5 }));
+    star.position.y = 2.3; grp.add(star); return grp;
   }
-
-  // Trigger — صندوق شفاف
   if (obj.type === "trigger") {
-    const w = Math.max(1.0, obj.width / 60);
-    const h = Math.max(1.0, obj.height / 60);
-    return new THREE.Mesh(
-      new THREE.BoxGeometry(w, h, 0.15),
-      new THREE.MeshLambertMaterial({ color: 0xf59e0b, transparent: true, opacity: 0.4 })
-    );
+    const w = Math.max(1.0, obj.width / 60), h = Math.max(1.0, obj.height / 60);
+    return new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.15), new THREE.MeshLambertMaterial({ color: 0xf59e0b, transparent: true, opacity: 0.4 }));
   }
-
-  // Decoration — مكعب بنفسجي
   if (obj.type === "decoration") {
     const s = Math.max(0.5, Math.min(obj.width, obj.height) / 60);
     const grp = new THREE.Group();
-    const box = new THREE.Mesh(new THREE.BoxGeometry(s, s, s),
-      new THREE.MeshLambertMaterial({ color: 0xa78bfa }));
+    const box = new THREE.Mesh(new THREE.BoxGeometry(s, s, s), new THREE.MeshLambertMaterial({ color: 0xa78bfa }));
     box.castShadow = true; grp.add(box);
-    const wire = new THREE.Mesh(new THREE.BoxGeometry(s+0.04, s+0.04, s+0.04),
-      new THREE.MeshLambertMaterial({ color: 0x7c3aed, wireframe: true }));
-    grp.add(wire);
-    return grp;
+    const wire = new THREE.Mesh(new THREE.BoxGeometry(s+0.04, s+0.04, s+0.04), new THREE.MeshLambertMaterial({ color: 0x7c3aed, wireframe: true }));
+    grp.add(wire); return grp;
   }
-
-  // Text — لوح مسطح
   if (obj.type === "text") {
     const w = Math.max(1.0, obj.width / 60);
-    return new THREE.Mesh(
-      new THREE.BoxGeometry(w, 0.5, 0.08),
-      new THREE.MeshLambertMaterial({ color: 0xe2e8f0, emissive: 0x94a3b8, emissiveIntensity: 0.3 })
-    );
+    return new THREE.Mesh(new THREE.BoxGeometry(w, 0.5, 0.08), new THREE.MeshLambertMaterial({ color: 0xe2e8f0, emissive: 0x94a3b8, emissiveIntensity: 0.3 }));
   }
-
-  // Camera icon
   if (obj.type === "camera") {
     const grp = new THREE.Group();
-    const body = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.5, 0.4),
-      new THREE.MeshLambertMaterial({ color: 0x1e293b }));
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.5, 0.4), new THREE.MeshLambertMaterial({ color: 0x1e293b }));
     body.castShadow = true; grp.add(body);
-    const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.14, 0.35, 12),
-      new THREE.MeshLambertMaterial({ color: 0x0f172a }));
+    const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.14, 0.35, 12), new THREE.MeshLambertMaterial({ color: 0x0f172a }));
     lens.rotation.x = Math.PI/2; lens.position.z = 0.32; grp.add(lens);
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.04, 8, 16),
-      new THREE.MeshLambertMaterial({ color: 0x6366f1, emissive: 0x6366f1, emissiveIntensity: 0.4 }));
-    ring.rotation.x = Math.PI/2; ring.position.z = 0.36; grp.add(ring);
-    return grp;
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.04, 8, 16), new THREE.MeshLambertMaterial({ color: 0x6366f1, emissive: 0x6366f1, emissiveIntensity: 0.4 }));
+    ring.rotation.x = Math.PI/2; ring.position.z = 0.36; grp.add(ring); return grp;
   }
-
-  // Light icon
   if (obj.type === "light") {
     const grp = new THREE.Group();
-    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.3, 10, 10),
-      new THREE.MeshLambertMaterial({ color: 0xfde68a, emissive: 0xfde68a, emissiveIntensity: 0.8 }));
+    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.3, 10, 10), new THREE.MeshLambertMaterial({ color: 0xfde68a, emissive: 0xfde68a, emissiveIntensity: 0.8 }));
     grp.add(bulb);
     for (let i = 0; i < 8; i++) {
-      const ray = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.6, 4),
-        new THREE.MeshLambertMaterial({ color: 0xfde68a, emissive: 0xfbbf24, emissiveIntensity: 0.6, transparent: true, opacity: 0.6 }));
+      const ray = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.6, 4), new THREE.MeshLambertMaterial({ color: 0xfde68a, emissive: 0xfbbf24, emissiveIntensity: 0.6, transparent: true, opacity: 0.6 }));
       ray.rotation.z = (i / 8) * Math.PI * 2;
       ray.position.set(Math.sin((i/8)*Math.PI*2)*0.5, Math.cos((i/8)*Math.PI*2)*0.5, 0);
       grp.add(ray);
     }
     return grp;
   }
-
-  // emptyObject — أكسيس
   if (obj.type === "emptyObject") {
     const grp = new THREE.Group();
     const colors = [0xef4444, 0x22c55e, 0x3b82f6];
     const dirs   = [new THREE.Vector3(1,0,0), new THREE.Vector3(0,1,0), new THREE.Vector3(0,0,1)];
     for (let i = 0; i < 3; i++) {
-      const arrow = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.8, 6),
-        new THREE.MeshLambertMaterial({ color: colors[i] }));
+      const arrow = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.8, 6), new THREE.MeshLambertMaterial({ color: colors[i] }));
       arrow.position.copy(dirs[i].clone().multiplyScalar(0.4));
       if (i === 0) arrow.rotation.z = Math.PI/2;
       if (i === 2) arrow.rotation.x = Math.PI/2;
       grp.add(arrow);
     }
-    const center = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8),
-      new THREE.MeshLambertMaterial({ color: 0xffffff }));
-    grp.add(center);
-    return grp;
+    const center = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), new THREE.MeshLambertMaterial({ color: 0xffffff }));
+    grp.add(center); return grp;
   }
 
-  // Fallback — colored box
   const size = Math.max(0.8, Math.min(obj.width || 96, obj.height || 96) / 60);
-  const mesh = new THREE.Mesh(
-    new THREE.BoxGeometry(size, size, size),
-    new THREE.MeshLambertMaterial({ color: OBJ_COLORS[obj.type] || 0x7c3aed })
-  );
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(size, size, size), new THREE.MeshLambertMaterial({ color: OBJ_COLORS[obj.type] || 0x7c3aed }));
   mesh.castShadow = true;
   return mesh;
 }
@@ -501,9 +436,7 @@ function addSelectionRing(obj3d: THREE.Object3D): THREE.Mesh {
 // ─────────────────────────────────────────────────────────
 //  إحداثيات: editor pixels → 3D world
 // ─────────────────────────────────────────────────────────
-function worldX(obj: GameObject) {
-  return (obj.x - 960) / 80;
-}
+function worldX(obj: GameObject) { return (obj.x - 960) / 80; }
 
 function worldY(obj: GameObject) {
   const base = (1080 - obj.y) / 80 - 5.5;
@@ -519,9 +452,6 @@ function worldY(obj: GameObject) {
   }
 }
 
-// ─────────────────────────────────────────────────────────
-//  PLAY STATE
-// ─────────────────────────────────────────────────────────
 interface PlayState {
   pos: THREE.Vector3; vel: THREE.Vector3;
   yaw: number; pitch: number; onGround: boolean;
@@ -532,24 +462,25 @@ interface PlayState {
 //  MAIN COMPONENT
 // ─────────────────────────────────────────────────────────
 export default function Canvas3D() {
-  const mountRef     = useRef<HTMLDivElement>(null);
-  const sceneRef     = useRef<THREE.Scene | null>(null);
-  const camRef       = useRef<THREE.PerspectiveCamera | null>(null);
-  const rendRef      = useRef<THREE.WebGLRenderer | null>(null);
-  const frameRef     = useRef<number>(0);
-  // ✅ KEY FIX: Map يستخدم obj.id كـ key — مش type — فكل object بيتبنى لوحده
-  const objMapRef    = useRef<Map<string, THREE.Object3D>>(new Map());
-  const isDragging   = useRef(false);
-  const lastMouse    = useRef({ x: 0, y: 0, btn: 0 });
-  const mouseDownPos = useRef({ x: 0, y: 0 });
-  const camState     = useRef({ theta: 0.5, phi: 1.05, radius: 16, tx: 0, ty: 1, tz: 0 });
-  const playRef      = useRef<PlayState>({ pos: new THREE.Vector3(0,1.5,5), vel: new THREE.Vector3(), yaw:0, pitch:0, onGround:false, viewMode:"third" });
+  const mountRef       = useRef<HTMLDivElement>(null);
+  const sceneRef       = useRef<THREE.Scene | null>(null);
+  const camRef         = useRef<THREE.PerspectiveCamera | null>(null);
+  const rendRef        = useRef<THREE.WebGLRenderer | null>(null);
+  const frameRef       = useRef<number>(0);
+  // ✅ KEY FIX: Map يستخدم obj.id كـ key — مش type
+  const objMapRef      = useRef<Map<string, THREE.Object3D>>(new Map());
+  const isDragging     = useRef(false);
+  const lastMouse      = useRef({ x: 0, y: 0, btn: 0 });
+  const mouseDownPos   = useRef({ x: 0, y: 0 });
+  const camState       = useRef({ theta: 0.5, phi: 1.05, radius: 16, tx: 0, ty: 1, tz: 0 });
+  const playRef        = useRef<PlayState>({ pos: new THREE.Vector3(0,1.5,5), vel: new THREE.Vector3(), yaw:0, pitch:0, onGround:false, viewMode:"third" });
   const playerMeshRef  = useRef<THREE.Group | null>(null);
-  const keysRef      = useRef<Record<string,boolean>>({});
-  const isPlayingRef = useRef(false);
+  const keysRef        = useRef<Record<string,boolean>>({});
+  const isPlayingRef   = useRef(false);
+  const pendingDropRef = useRef<any>(null);
+  const raycaster      = useRef(new THREE.Raycaster());
+  const groundPlane    = useRef(new THREE.Plane(new THREE.Vector3(0,1,0), 0));
   const [playHUD, setPlayHUD] = React.useState({ viewMode: "third" });
-  const raycaster    = useRef(new THREE.Raycaster());
-  const groundPlane  = useRef(new THREE.Plane(new THREE.Vector3(0,1,0), 0));
 
   const store = useEditorStore();
   isPlayingRef.current = store.ui.isPlaying;
@@ -563,8 +494,7 @@ export default function Canvas3D() {
 
   useEffect(() => {
     const mount = mountRef.current; if (!mount) return;
-    const W = mount.clientWidth  || 800;
-    const H = mount.clientHeight || 600;
+    const W = mount.clientWidth || 800, H = mount.clientHeight || 600;
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0a0f1e);
@@ -601,11 +531,7 @@ export default function Canvas3D() {
     const GRAVITY = -18;
 
     // ════════════════════════════════════════════════════
-    //  ✅ FIXED syncObjects
-    //  المشكلة الأصلية: كل objects من نفس النوع كانت تشارك نفس الـ cacheKey
-    //  فأي object تاني من نفس النوع ما كانش يتبنى لأن الـ existing كان موجود
-    //  الحل: الـ Map بتستخدم obj.id كـ key (فريد دايماً)
-    //         الـ cacheKey بس بيحدد إمتى نعيد البناء (لما يتغير نوع/sprite)
+    //  ✅ FIXED syncObjects — obj.id كـ Map key
     // ════════════════════════════════════════════════════
     function syncObjects() {
       const storeState = useEditorStore.getState();
@@ -613,62 +539,37 @@ export default function Canvas3D() {
       const objects = activeScene?.objects ?? [];
       const selectedId = storeState.ui.selectedObjectId;
 
-      // حذف objects اتشالت من الـ store
       const currentIds = new Set(objects.map((o: GameObject) => o.id));
       objMapRef.current.forEach((_mesh, id) => {
-        if (!currentIds.has(id)) {
-          scene.remove(_mesh);
-          objMapRef.current.delete(id);
-        }
+        if (!currentIds.has(id)) { scene.remove(_mesh); objMapRef.current.delete(id); }
       });
 
-      // offset بسيط للـ objects في نفس الموقع عشان يكونوا مرئيين
       const posCount: Record<string, number> = {};
 
       for (const obj of objects) {
         const spriteKey  = (obj as any).spriteKey  || "";
         const assetScale = (obj as any).assetScale ?? 1;
-        // cacheKey بيحدد إمتى نبني mesh جديد (نوع أو sprite اتغير)
         const cacheKey   = `${obj.type}__${spriteKey}__${assetScale}`;
-
-        // existing بيتجيب بـ obj.id الفريد — مش بـ type
-        const existing    = objMapRef.current.get(obj.id);
+        const existing   = objMapRef.current.get(obj.id);
         const existingKey = (existing as any)?._cacheKey ?? "";
-
-        const wx = worldX(obj);
-        const wy = worldY(obj);
-
-        // لو في objects في نفس الإحداثيات نحرك كل واحد شوية على Z
+        const wx = worldX(obj), wy = worldY(obj);
         const posKey = `${Math.round(wx * 10)}_${Math.round(wy * 10)}`;
         posCount[posKey] = (posCount[posKey] || 0) + 1;
         const zOff = (posCount[posKey] - 1) * 0.5;
 
         if (!existing || existingKey !== cacheKey) {
-          // القديم موجود بس محتاج نبدله (تغير النوع/الـ sprite)
           if (existing) scene.remove(existing);
-
-          // بناء الـ mesh الجديد
           let obj3d: THREE.Object3D;
-          try {
-            obj3d = buildObject3D(obj);
-          } catch (e) {
-            console.error("[Canvas3D] buildObject3D failed:", obj.name, obj.type, e);
-            continue;
-          }
-
+          try { obj3d = buildObject3D(obj); }
+          catch (e) { console.error("[Canvas3D] buildObject3D failed:", obj.name, obj.type, e); continue; }
           obj3d.position.set(wx, wy, zOff);
           obj3d.castShadow = true;
           (obj3d as any)._selRing  = addSelectionRing(obj3d);
           (obj3d as any)._cacheKey = cacheKey;
-
           scene.add(obj3d);
-          objMapRef.current.set(obj.id, obj3d); // ✅ id فريد كـ key
+          objMapRef.current.set(obj.id, obj3d);
         } else {
-          // Object موجود — حدّث الموقع
-          if (obj.type !== "collectible") {
-            existing.position.set(wx, wy, zOff);
-          }
-          // selection ring
+          if (obj.type !== "collectible") existing.position.set(wx, wy, zOff);
           const ring = (existing as any)._selRing as THREE.Mesh | undefined;
           if (ring) ring.visible = selectedId === obj.id;
         }
@@ -676,8 +577,7 @@ export default function Canvas3D() {
     }
 
     function updatePlayMode(dt: number) {
-      const ps = playRef.current;
-      const cam2 = camRef.current; if (!cam2) return;
+      const ps = playRef.current, cam2 = camRef.current; if (!cam2) return;
       const keys = keysRef.current;
       const sinY = Math.sin(ps.yaw), cosY = Math.cos(ps.yaw);
       let mx = 0, mz = 0;
@@ -707,18 +607,13 @@ export default function Canvas3D() {
       t += 0.016;
       syncObjects();
       if (isPlayingRef.current) updatePlayMode(0.016);
-
       objMapRef.current.forEach((obj3d, id) => {
         const obj = useEditorStore.getState().getActiveScene()?.objects.find((o: GameObject) => o.id === id);
         if (!obj) return;
-        if (obj.type === "collectible") {
-          obj3d.rotation.y = t * 1.8;
-          obj3d.position.y = worldY(obj) + 0.3 + Math.sin(t*2)*0.18;
-        }
+        if (obj.type === "collectible") { obj3d.rotation.y = t * 1.8; obj3d.position.y = worldY(obj) + 0.3 + Math.sin(t*2)*0.18; }
         if ((obj3d as any)._bones) animateCharacter(obj3d as THREE.Group, t, false);
         if (obj.type === "light") obj3d.rotation.y = t * 0.8;
       });
-
       if (isPlayingRef.current && playerMeshRef.current) {
         const ps = playRef.current;
         const moving = Math.abs(ps.vel.x)>0.2||Math.abs(ps.vel.z)>0.2;
@@ -778,20 +673,51 @@ export default function Canvas3D() {
     };
   }, [isPlayMode]);
 
-  function handleEditorClick(clientX: number, clientY: number) {
+  // ─── تحويل نقطة الكليك على الـ canvas لإحداثيات editor ───
+  function canvasPointToEditorXY(clientX: number, clientY: number): { x: number; y: number } | null {
     const mount = mountRef.current, cam = camRef.current;
-    if (!mount || !cam) return;
+    if (!mount || !cam) return null;
     const canvas = mount.querySelector("canvas") || mount;
     const rect = canvas.getBoundingClientRect();
     const ndcX =  ((clientX - rect.left) / rect.width)  * 2 - 1;
     const ndcY = -((clientY - rect.top)  / rect.height) * 2 + 1;
     raycaster.current.setFromCamera(new THREE.Vector2(ndcX, ndcY), cam);
     const target = new THREE.Vector3();
-    if (!raycaster.current.ray.intersectPlane(groundPlane.current, target)) return;
+    if (!raycaster.current.ray.intersectPlane(groundPlane.current, target)) return null;
     const edX = Math.round(target.x * 80 + 960);
-    const edY = Math.round(1080 - (target.y + 4.5) * 80);
-    const selObj = store.getSelectedObject();
-    store.addObjectOfType((selObj?.type || "platform") as any, { x: edX, y: edY });
+    const edY = Math.round(1080 - (target.y + 5.5) * 80);
+    return { x: edX, y: edY };
+  }
+
+  function handleCanvasClick(clientX: number, clientY: number) {
+    const pos = canvasPointToEditorXY(clientX, clientY);
+    if (!pos) return;
+    const { activeTool } = store.ui;
+
+    if (activeTool === "add") {
+      const pending = pendingDropRef.current;
+      if (pending) {
+        store.addObject({ ...pending, x: pos.x, y: pos.y });
+        pendingDropRef.current = null;
+      } else {
+        store.addObjectOfType("platform", pos);
+      }
+      return;
+    }
+
+    if (activeTool === "select") {
+      const scene = store.getActiveScene();
+      if (!scene) return;
+      let closest: string | null = null;
+      let minDist = Infinity;
+      for (const obj of scene.objects) {
+        const wx = (obj.x - 960) / 80, wy = (1080 - obj.y) / 80 - 5.5;
+        const tx = (pos.x - 960) / 80, ty = (1080 - pos.y) / 80 - 5.5;
+        const dist = Math.sqrt((wx - tx) ** 2 + (wy - ty) ** 2);
+        if (dist < 1.5 && dist < minDist) { minDist = dist; closest = obj.id; }
+      }
+      store.selectObject(closest);
+    }
   }
 
   function onMouseDown(e: React.MouseEvent) {
@@ -802,10 +728,9 @@ export default function Canvas3D() {
   }
   function onMouseMove(e: React.MouseEvent) {
     if (isPlayMode || !isDragging.current) return;
-    const dx = e.clientX - lastMouse.current.x;
-    const dy = e.clientY - lastMouse.current.y;
+    const dx = e.clientX - lastMouse.current.x, dy = e.clientY - lastMouse.current.y;
     lastMouse.current = { x: e.clientX, y: e.clientY, btn: lastMouse.current.btn };
-    if (lastMouse.current.btn === 0) {
+    if (lastMouse.current.btn === 0 && store.ui.activeTool !== "add") {
       camState.current.theta -= dx * 0.008;
       camState.current.phi = Math.max(0.15, Math.min(1.5, camState.current.phi + dy * 0.008));
     } else if (lastMouse.current.btn === 2) {
@@ -819,17 +744,44 @@ export default function Canvas3D() {
     isDragging.current = false;
     const dx = Math.abs(e.clientX - mouseDownPos.current.x);
     const dy = Math.abs(e.clientY - mouseDownPos.current.y);
-    if (dx < 5 && dy < 5 && e.button === 0 && store.ui.activeTool === "add") {
-      handleEditorClick(e.clientX, e.clientY);
-    }
+    if (dx < 6 && dy < 6 && e.button === 0) handleCanvasClick(e.clientX, e.clientY);
   }
   function onWheel(e: React.WheelEvent) {
     if (isPlayMode) return;
     camState.current.radius = Math.max(3, Math.min(40, camState.current.radius + e.deltaY * 0.02));
     updateCamera();
   }
+  function onDragOver(e: React.DragEvent) {
+    e.preventDefault(); e.dataTransfer.dropEffect = "copy";
+  }
+  function onDrop(e: React.DragEvent) {
+    e.preventDefault();
+    const pos = canvasPointToEditorXY(e.clientX, e.clientY);
+    if (!pos) return;
+    try {
+      const raw = e.dataTransfer.getData("application/x-editor-object");
+      if (!raw) return;
+      const data = JSON.parse(raw);
+      if (!data.type) return;
+      if (data.spriteKey) {
+        store.addObject({
+          id: `obj_${Date.now()}`, name: data.name || data.type,
+          tag: data.tag || "Untagged", layer: 0, active: true, isStatic: false,
+          parentId: null, childIds: [], type: data.type,
+          x: pos.x, y: pos.y, width: data.width || 96, height: data.height || 96,
+          rotation: 0, visible: true, locked: false,
+          color: { r: 124, g: 58, b: 237, a: 1 }, tags: [], components: [],
+          spriteKey: data.spriteKey,
+        } as any);
+      } else {
+        store.addObjectOfType(data.type, pos);
+      }
+    } catch {/* ignore */}
+  }
 
-  const cursor = isPlayMode ? "none" : store.ui.activeTool === "add" ? "crosshair" : "grab";
+  const cursor = isPlayMode ? "none"
+    : store.ui.activeTool === "add" ? "crosshair"
+    : store.ui.activeTool === "move" ? "move" : "grab";
 
   return (
     <div
@@ -838,28 +790,43 @@ export default function Canvas3D() {
       onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp}
       onMouseLeave={() => { if (!isPlayMode) isDragging.current = false; }}
       onWheel={onWheel} onContextMenu={e => e.preventDefault()}
+      onDragOver={onDragOver} onDrop={onDrop}
     >
       {!isPlayMode && (
-        <div style={{ position:"absolute", bottom:10, left:"50%", transform:"translateX(-50%)", background:"rgba(0,0,0,0.6)", borderRadius:20, padding:"4px 14px", fontSize:11, color:"rgba(255,255,255,0.5)", pointerEvents:"none", fontFamily:"var(--font-cairo)", whiteSpace:"nowrap" }}>
+        <div style={{ position:"absolute", bottom:10, left:"50%", transform:"translateX(-50%)",
+          background:"rgba(7,9,15,0.82)", backdropFilter:"blur(8px)",
+          borderRadius:20, padding:"5px 16px", fontSize:11,
+          color:"rgba(255,255,255,0.42)", pointerEvents:"none",
+          fontFamily:"var(--font-cairo)", whiteSpace:"nowrap",
+          border:"1px solid rgba(255,255,255,0.07)" }}>
           {store.ui.activeTool === "add"
-            ? `كليك في الـ 3D لإضافة ${store.getSelectedObject()?.type || "platform"}`
-            : "يسار: تدوير | يمين: تحريك | عجلة: zoom | ➕ لوضع كائن بالكليك"}
+            ? "🖱️ كليك أو اسحب كائن هنا"
+            : "يسار: تدوير • يمين: تحريك • عجلة: zoom • كليك: تحديد"}
         </div>
       )}
       {isPlayMode && (
         <>
-          <div style={{ position:"absolute", top:10, left:"50%", transform:"translateX(-50%)", background:"rgba(0,0,0,0.75)", borderRadius:10, padding:"5px 16px", fontSize:11, color:"#a5b4fc", pointerEvents:"none", fontFamily:"var(--font-cairo)", display:"flex", gap:14 }}>
+          <div style={{ position:"absolute", top:12, left:"50%", transform:"translateX(-50%)",
+            background:"rgba(7,9,15,0.82)", backdropFilter:"blur(8px)",
+            borderRadius:24, padding:"6px 20px", fontSize:11, color:"#a5b4fc",
+            pointerEvents:"none", fontFamily:"var(--font-cairo)", display:"flex", gap:16,
+            border:"1px solid rgba(124,58,237,0.3)" }}>
             <span>WASD حركة</span><span>Space قفز</span>
             <span>V كاميرا ({playHUD.viewMode==="first"?"FPS":"TPS"})</span>
           </div>
           <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", pointerEvents:"none" }}>
-            <div style={{ position:"relative", width:18, height:18 }}>
-              <div style={{ position:"absolute", top:"50%", left:0, right:0, height:1.5, background:"rgba(255,255,255,0.9)", transform:"translateY(-50%)" }}/>
-              <div style={{ position:"absolute", left:"50%", top:0, bottom:0, width:1.5, background:"rgba(255,255,255,0.9)", transform:"translateX(-50%)" }}/>
-            </div>
+            <svg width="20" height="20" viewBox="0 0 20 20">
+              <line x1="10" y1="2" x2="10" y2="18" stroke="rgba(255,255,255,0.8)" strokeWidth="1.5"/>
+              <line x1="2" y1="10" x2="18" y2="10" stroke="rgba(255,255,255,0.8)" strokeWidth="1.5"/>
+              <circle cx="10" cy="10" r="2" fill="none" stroke="rgba(255,255,255,0.8)" strokeWidth="1.5"/>
+            </svg>
           </div>
-          <button onClick={() => store.setPlaying(false)} style={{ position:"absolute", top:10, right:10, background:"rgba(239,68,68,0.85)", border:"none", borderRadius:8, color:"#fff", padding:"5px 12px", fontSize:11, cursor:"pointer", fontFamily:"var(--font-cairo)" }}>
-            خروج
+          <button onClick={() => store.setPlaying(false)}
+            style={{ position:"absolute", top:12, right:12,
+              background:"rgba(239,68,68,0.9)", border:"none", borderRadius:10,
+              color:"#fff", padding:"6px 14px", fontSize:11, cursor:"pointer",
+              fontFamily:"var(--font-cairo)", fontWeight:700 }}>
+            ⏹ خروج
           </button>
         </>
       )}

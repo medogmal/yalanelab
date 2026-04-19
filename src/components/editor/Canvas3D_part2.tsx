@@ -1,119 +1,171 @@
+  const pendingDropRef = useRef<any>(null);
 
-// ── بناء Platform/Wall ──────────────────────────────────────
-function buildPlatform3D(obj: GameObject): THREE.Mesh {
-  const w = obj.width  / 80;
-  const h = (obj.type === "wall" ? obj.height : 20) / 80;
-  const d = 0.6;
-  const geo = new THREE.BoxGeometry(w, h, d);
-  // لون الوجه العلوي فاتح
-  const mats = [
-    new THREE.MeshLambertMaterial({ color: OBJ_COLORS[obj.type as ObjectType] || 0x2563eb }),
-    new THREE.MeshLambertMaterial({ color: OBJ_COLORS[obj.type as ObjectType] || 0x2563eb }),
-    new THREE.MeshLambertMaterial({ color: new THREE.Color(OBJ_COLORS[obj.type as ObjectType] || 0x2563eb).addScalar(0.15).getHex() }),
-    new THREE.MeshLambertMaterial({ color: OBJ_COLORS[obj.type as ObjectType] || 0x2563eb }),
-    new THREE.MeshLambertMaterial({ color: OBJ_COLORS[obj.type as ObjectType] || 0x2563eb }),
-    new THREE.MeshLambertMaterial({ color: OBJ_COLORS[obj.type as ObjectType] || 0x2563eb }),
-  ];
-  return new THREE.Mesh(geo, mats);
-}
+  // ─── تحويل نقطة الكليك على الـ canvas لإحداثيات editor ──────────────
+  function canvasPointToEditorXY(clientX: number, clientY: number): { x: number; y: number } | null {
+    const mount = mountRef.current, cam = camRef.current;
+    if (!mount || !cam) return null;
+    const canvas = mount.querySelector("canvas") || mount;
+    const rect = canvas.getBoundingClientRect();
+    const ndcX =  ((clientX - rect.left) / rect.width)  * 2 - 1;
+    const ndcY = -((clientY - rect.top)  / rect.height) * 2 + 1;
+    raycaster.current.setFromCamera(new THREE.Vector2(ndcX, ndcY), cam);
+    const target = new THREE.Vector3();
+    if (!raycaster.current.ray.intersectPlane(groundPlane.current, target)) return null;
+    // worldX(obj) = (obj.x - 960) / 80  →  obj.x = target.x * 80 + 960
+    // worldY(obj) = (1080 - obj.y) / 80 - 5.5  →  obj.y = 1080 - (target.y + 5.5) * 80
+    const edX = Math.round(target.x * 80 + 960);
+    const edY = Math.round(1080 - (target.y + 5.5) * 80);
+    return { x: edX, y: edY };
+  }
 
-// ── بناء Collectible ──────────────────────────────────────
-function buildCollectible3D(): THREE.Group {
-  const g = new THREE.Group();
-  const star = new THREE.Mesh(
-    new THREE.OctahedronGeometry(0.22, 0),
-    new THREE.MeshLambertMaterial({ color: 0xfbbf24, emissive: 0xf59e0b, emissiveIntensity: 0.4 })
-  );
-  star.rotation.y = Math.PI / 4;
-  g.add(star);
-  const glow = new THREE.Mesh(
-    new THREE.SphereGeometry(0.3, 8, 8),
-    new THREE.MeshLambertMaterial({ color: 0xfde68a, transparent: true, opacity: 0.2 })
-  );
-  g.add(glow);
-  return g;
-}
+  function handleCanvasClick(clientX: number, clientY: number) {
+    const pos = canvasPointToEditorXY(clientX, clientY);
+    if (!pos) return;
+    const { activeTool } = store.ui;
 
-// ── بناء Spawn/Goal ───────────────────────────────────────
-function buildMarker3D(color: number): THREE.Group {
-  const g = new THREE.Group();
-  const pole = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.04, 0.04, 1.2, 6),
-    new THREE.MeshLambertMaterial({ color: 0x9ca3af })
-  );
-  pole.position.y = 0.6;
-  const flag = new THREE.Mesh(
-    new THREE.BoxGeometry(0.4, 0.28, 0.04),
-    new THREE.MeshLambertMaterial({ color })
-  );
-  flag.position.set(0.2, 1.1, 0);
-  g.add(pole, flag);
-  return g;
-}
+    if (activeTool === "add") {
+      const pending = pendingDropRef.current;
+      if (pending) {
+        store.addObject({ ...pending, x: pos.x, y: pos.y });
+        pendingDropRef.current = null;
+      } else {
+        store.addObjectOfType("platform", pos);
+      }
+      return;
+    }
 
-// ── Main 3D Canvas Component ─────────────────────────────
-export default function Canvas3D() {
-  const mountRef   = useRef<HTMLDivElement>(null);
-  const sceneRef   = useRef<THREE.Scene | null>(null);
-  const camRef     = useRef<THREE.PerspectiveCamera | null>(null);
-  const rendRef    = useRef<THREE.WebGLRenderer | null>(null);
-  const objMapRef  = useRef<Map<string, THREE.Object3D>>(new Map());
-  const frameRef   = useRef<number>(0);
-  const mouseRef   = useRef({ x: 0, y: 0, down: false, btn: 0, lastX: 0, lastY: 0 });
-  const camRotRef  = useRef({ theta: 0.4, phi: 1.1, radius: 14 });
-  const camTargRef = useRef(new THREE.Vector3(0, 0, 0));
+    if (activeTool === "select") {
+      const scene = store.getActiveScene();
+      if (!scene) return;
+      let closest: string | null = null;
+      let minDist = Infinity;
+      for (const obj of scene.objects) {
+        const wx = (obj.x - 960) / 80;
+        const wy = (1080 - obj.y) / 80 - 5.5;
+        const tx = (pos.x - 960) / 80;
+        const ty = (1080 - pos.y) / 80 - 5.5;
+        const dist = Math.sqrt((wx - tx) ** 2 + (wy - ty) ** 2);
+        if (dist < 1.5 && dist < minDist) { minDist = dist; closest = obj.id; }
+      }
+      store.selectObject(closest);
+    }
+  }
 
-  const store = useEditorStore();
-
-  // ── Setup scene ──────────────────────────────────────────
-  const initScene = useCallback(() => {
-    const mount = mountRef.current;
-    if (!mount) return;
-
-    // Scene
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0a0f1e);
-    scene.fog = new THREE.Fog(0x0a0f1e, 30, 80);
-    sceneRef.current = scene;
-
-    // Camera
-    const cam = new THREE.PerspectiveCamera(55, mount.clientWidth / mount.clientHeight, 0.1, 200);
-    camRef.current = cam;
+  function onMouseDown(e: React.MouseEvent) {
+    if (isPlayMode) { mountRef.current?.requestPointerLock?.(); return; }
+    isDragging.current = true;
+    lastMouse.current = { x: e.clientX, y: e.clientY, btn: e.button };
+    mouseDownPos.current = { x: e.clientX, y: e.clientY };
+  }
+  function onMouseMove(e: React.MouseEvent) {
+    if (isPlayMode || !isDragging.current) return;
+    const dx = e.clientX - lastMouse.current.x;
+    const dy = e.clientY - lastMouse.current.y;
+    lastMouse.current = { x: e.clientX, y: e.clientY, btn: lastMouse.current.btn };
+    if (lastMouse.current.btn === 0 && store.ui.activeTool !== "add") {
+      camState.current.theta -= dx * 0.008;
+      camState.current.phi = Math.max(0.15, Math.min(1.5, camState.current.phi + dy * 0.008));
+    } else if (lastMouse.current.btn === 2) {
+      camState.current.tx -= dx * 0.04;
+      camState.current.tz += dy * 0.04;
+    }
     updateCamera();
+  }
+  function onMouseUp(e: React.MouseEvent) {
+    if (isPlayMode) return;
+    isDragging.current = false;
+    const dx = Math.abs(e.clientX - mouseDownPos.current.x);
+    const dy = Math.abs(e.clientY - mouseDownPos.current.y);
+    if (dx < 6 && dy < 6 && e.button === 0) handleCanvasClick(e.clientX, e.clientY);
+  }
+  function onWheel(e: React.WheelEvent) {
+    if (isPlayMode) return;
+    camState.current.radius = Math.max(3, Math.min(40, camState.current.radius + e.deltaY * 0.02));
+    updateCamera();
+  }
 
-    // Renderer
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(mount.clientWidth, mount.clientHeight);
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    renderer.setPixelRatio(window.devicePixelRatio);
-    mount.appendChild(renderer.domElement);
-    rendRef.current = renderer;
+  function onDragOver(e: React.DragEvent) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+  }
+  function onDrop(e: React.DragEvent) {
+    e.preventDefault();
+    const pos = canvasPointToEditorXY(e.clientX, e.clientY);
+    if (!pos) return;
+    try {
+      const raw = e.dataTransfer.getData("application/x-editor-object");
+      if (!raw) return;
+      const data = JSON.parse(raw);
+      if (!data.type) return;
+      if (data.spriteKey) {
+        store.addObject({
+          id: `obj_${Date.now()}`, name: data.name || data.type,
+          tag: data.tag || "Untagged", layer: 0, active: true, isStatic: false,
+          parentId: null, childIds: [], type: data.type,
+          x: pos.x, y: pos.y,
+          width: data.width || 96, height: data.height || 96,
+          rotation: 0, visible: true, locked: false,
+          color: { r: 124, g: 58, b: 237, a: 1 }, tags: [], components: [],
+          spriteKey: data.spriteKey,
+        } as any);
+      } else {
+        store.addObjectOfType(data.type, pos);
+      }
+    } catch {/* ignore */}
+  }
 
-    // ── Lighting ──
-    const ambient = new THREE.AmbientLight(0x4466aa, 0.6);
-    scene.add(ambient);
+  const cursor = isPlayMode ? "none"
+    : store.ui.activeTool === "add" ? "crosshair"
+    : store.ui.activeTool === "move" ? "move"
+    : "grab";
 
-    const sun = new THREE.DirectionalLight(0xfff5e0, 1.4);
-    sun.position.set(8, 16, 6);
-    sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
-    sun.shadow.camera.near = 0.5;
-    sun.shadow.camera.far = 60;
-    sun.shadow.camera.left = -20;
-    sun.shadow.camera.right = 20;
-    sun.shadow.camera.top = 20;
-    sun.shadow.camera.bottom = -20;
-    scene.add(sun);
-
-    const fill = new THREE.DirectionalLight(0x4488ff, 0.4);
-    fill.position.set(-6, 4, -6);
-    scene.add(fill);
-
-    // ── Sky ──
-    buildSky(scene);
-
-    // ── Ground & Environment ──
-    buildEnvironment(scene);
-
-  }, []);
+  return (
+    <div
+      ref={mountRef}
+      style={{ flex:1, position:"relative", overflow:"hidden", cursor, minHeight:0, height:"100%", width:"100%" }}
+      onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp}
+      onMouseLeave={() => { if (!isPlayMode) isDragging.current = false; }}
+      onWheel={onWheel} onContextMenu={e => e.preventDefault()}
+      onDragOver={onDragOver} onDrop={onDrop}
+    >
+      {!isPlayMode && (
+        <div style={{ position:"absolute", bottom:10, left:"50%", transform:"translateX(-50%)",
+          background:"rgba(7,9,15,0.82)", backdropFilter:"blur(8px)",
+          borderRadius:20, padding:"5px 16px", fontSize:11,
+          color:"rgba(255,255,255,0.42)", pointerEvents:"none",
+          fontFamily:"var(--font-cairo)", whiteSpace:"nowrap",
+          border:"1px solid rgba(255,255,255,0.07)" }}>
+          {store.ui.activeTool === "add"
+            ? "🖱️ كليك أو اسحب كائن هنا"
+            : "يسار: تدوير • يمين: تحريك • عجلة: zoom • كليك: تحديد"}
+        </div>
+      )}
+      {isPlayMode && (
+        <>
+          <div style={{ position:"absolute", top:12, left:"50%", transform:"translateX(-50%)",
+            background:"rgba(7,9,15,0.82)", backdropFilter:"blur(8px)",
+            borderRadius:24, padding:"6px 20px", fontSize:11, color:"#a5b4fc",
+            pointerEvents:"none", fontFamily:"var(--font-cairo)", display:"flex", gap:16,
+            border:"1px solid rgba(124,58,237,0.3)" }}>
+            <span>WASD حركة</span><span>Space قفز</span>
+            <span>V كاميرا ({playHUD.viewMode==="first"?"FPS":"TPS"})</span>
+          </div>
+          <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", pointerEvents:"none" }}>
+            <svg width="20" height="20" viewBox="0 0 20 20">
+              <line x1="10" y1="2" x2="10" y2="18" stroke="rgba(255,255,255,0.8)" strokeWidth="1.5"/>
+              <line x1="2" y1="10" x2="18" y2="10" stroke="rgba(255,255,255,0.8)" strokeWidth="1.5"/>
+              <circle cx="10" cy="10" r="2" fill="none" stroke="rgba(255,255,255,0.8)" strokeWidth="1.5"/>
+            </svg>
+          </div>
+          <button onClick={() => store.setPlaying(false)}
+            style={{ position:"absolute", top:12, right:12,
+              background:"rgba(239,68,68,0.9)", border:"none", borderRadius:10,
+              color:"#fff", padding:"6px 14px", fontSize:11, cursor:"pointer",
+              fontFamily:"var(--font-cairo)", fontWeight:700 }}>
+            ⏹ خروج
+          </button>
+        </>
+      )}
+    </div>
+  );
+}

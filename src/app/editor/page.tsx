@@ -375,8 +375,9 @@ function InspectorPanel() {
   const [compSearch,  setCompSearch]  = useState("");
 
   if (!obj && !scene) return (
-    <div style={{width:260,background:T.bgPanel,borderLeft:`1px solid ${T.border}`,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
-      <span style={{fontSize:11,color:T.text600}}>لا يوجد تحديد</span>
+    <div style={{width:260,background:T.bgPanel,borderLeft:`1px solid ${T.border}`,flexShrink:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:10}}>
+      <Settings size={24} style={{color:T.text600,opacity:0.3}}/>
+      <span style={{fontSize:11,color:T.text600}}>حدد كائناً لتعديله</span>
     </div>
   );
 
@@ -661,10 +662,15 @@ function HierarchyPanel() {
   return (
     <div style={{width:230,background:T.bgPanel,borderRight:`1px solid ${T.border}`,display:"flex",flexDirection:"column",flexShrink:0,overflow:"hidden"}}>
       {/* Tabs */}
-      <div style={{display:"flex",borderBottom:`1px solid ${T.border}`,flexShrink:0}}>
+      <div style={{display:"flex",borderBottom:`1px solid ${T.border}`,flexShrink:0,background:T.bgBase}}>
         {TABS.map(p=>(
           <button key={p.id} onClick={()=>store.setPanel(p.id)} title={p.tip}
-            style={{flex:1,height:34,background:"transparent",border:"none",borderBottom:ui.activePanel===p.id?`2px solid ${T.accent}`:"2px solid transparent",color:ui.activePanel===p.id?T.accent:T.text600,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}>
+            style={{flex:1,height:36,background:"transparent",border:"none",
+              borderBottom:ui.activePanel===p.id?`2px solid ${T.accent}`:"2px solid transparent",
+              color:ui.activePanel===p.id?T.accent:T.text600,
+              display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",
+              transition:"color .15s",
+            }}>
             {p.icon}
           </button>
         ))}
@@ -689,22 +695,36 @@ function HierarchyPanel() {
             </div>
           </div>
           <div style={{flex:1,overflow:"auto",padding:"4px 0"}}>
-            {!objects.length&&<div style={{padding:"20px 12px",textAlign:"center"}}><p style={{fontSize:11,color:T.text600}}>لا يوجد كائنات — اضغط ➕</p></div>}
+            {!objects.length&&(
+              <div style={{padding:"24px 12px",textAlign:"center",display:"flex",flexDirection:"column",alignItems:"center",gap:10}}>
+                <div style={{width:44,height:44,borderRadius:12,background:T.accentSoft,border:`1px dashed ${T.accent}`,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                  <Layers size={20} style={{color:T.accent,opacity:0.5}}/>
+                </div>
+                <p style={{fontSize:11,color:T.text600,lineHeight:1.6,margin:0}}>المشهد فارغ<br/><span style={{fontSize:10,color:T.text600}}>اضغط ➕ أو اسحب شخصية</span></p>
+              </div>
+            )}
             {objects.map(obj=>{
               const sel=ui.selectedObjectId===obj.id;
               return (
                 <div key={obj.id}
                   onClick={e=>{ if(e.ctrlKey||e.metaKey)store.toggleSelectObject(obj.id); else store.selectObject(obj.id); }}
-                  style={{display:"flex",alignItems:"center",gap:6,padding:"4px 8px",cursor:"pointer",background:sel?T.bgActive:"transparent",borderLeft:`2px solid ${sel?T.accent:"transparent"}`}}>
-                  <span style={{fontSize:11}}>{OBJ_ICONS[obj.type]||"○"}</span>
-                  <span style={{fontSize:11,color:sel?T.text100:T.text200,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{obj.name}</span>
+                  style={{display:"flex",alignItems:"center",gap:6,padding:"5px 8px",cursor:"pointer",
+                    background:sel?"linear-gradient(90deg,rgba(124,58,237,0.15),rgba(124,58,237,0.05))":"transparent",
+                    borderLeft:`2px solid ${sel?T.accent:"transparent"}`,
+                    borderRadius:"0 4px 4px 0",
+                    transition:"background .1s",
+                  }}
+                  onMouseEnter={e=>{ if(!sel) e.currentTarget.style.background=T.bgHover; }}
+                  onMouseLeave={e=>{ if(!sel) e.currentTarget.style.background="transparent"; }}>
+                  <span style={{fontSize:11,opacity:obj.active?1:0.4}}>{OBJ_ICONS[obj.type]||"○"}</span>
+                  <span style={{fontSize:11,color:sel?T.text100:T.text200,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontWeight:sel?600:400}}>{obj.name}</span>
                   {sel&&(
                     <div style={{display:"flex",gap:1}}>
-                      <button onClick={e=>{e.stopPropagation();store.duplicateObject(obj.id);}} style={{background:"none",border:"none",color:T.text400,cursor:"pointer",display:"flex"}}><Copy size={9}/></button>
-                      <button onClick={e=>{e.stopPropagation();store.removeObject(obj.id);}} style={{background:"none",border:"none",color:T.red,cursor:"pointer",display:"flex"}}><Trash2 size={9}/></button>
+                      <button onClick={e=>{e.stopPropagation();store.duplicateObject(obj.id);}} style={{background:"none",border:"none",color:T.text400,cursor:"pointer",display:"flex",padding:2}} title="نسخ"><Copy size={9}/></button>
+                      <button onClick={e=>{e.stopPropagation();store.removeObject(obj.id);}} style={{background:"none",border:"none",color:T.red,cursor:"pointer",display:"flex",padding:2}} title="حذف"><Trash2 size={9}/></button>
                     </div>
                   )}
-                  <span style={{fontSize:9,color:T.text600}}>{obj.components?.length||0}c</span>
+                  <span style={{fontSize:9,color:T.text600,fontVariantNumeric:"tabular-nums"}}>{obj.components?.length||0}c</span>
                 </div>
               );
             })}
@@ -744,27 +764,39 @@ function HierarchyPanel() {
             ))}
           </div>
           <div style={{flex:1,overflow:"auto",padding:"5px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:5}}>
-            {getCharactersByCategory(charCat).map(char=>(
+            {getCharactersByCategory(charCat).map(char=>{
+              const objType = char.category==="hero"?"player":char.category==="boss"||char.category==="enemy"?"enemy":"npc";
+              const tag = char.category==="hero"?"Player":char.category==="enemy"||char.category==="boss"?"Enemy":"Untagged";
+              return (
               <div key={char.id}
+                draggable
+                onDragStart={e=>{
+                  e.dataTransfer.effectAllowed="copy";
+                  e.dataTransfer.setData("application/x-editor-object", JSON.stringify({
+                    type:objType, name:char.name, tag,
+                    spriteKey:char.id, width:char.width, height:char.height,
+                  }));
+                }}
                 onClick={()=>{
                   const sc=store.getActiveScene(); if(!sc) return;
                   store.addObject({
-                    id:`obj_${Date.now()}`,name:char.name,tag:char.category==="hero"?"Player":char.category==="enemy"||char.category==="boss"?"Enemy":"Untagged",
+                    id:`obj_${Date.now()}`,name:char.name,tag,
                     layer:0,active:true,isStatic:false,parentId:null,childIds:[],
-                    type:char.category==="hero"?"player":char.category==="boss"||char.category==="enemy"?"enemy":"npc",
+                    type:objType,
                     x:Math.round(sc.width*0.3+Math.random()*sc.width*0.4),
                     y:Math.round(sc.height*0.82)-char.height,
                     width:char.width,height:char.height,rotation:0,visible:true,locked:false,
                     color:{r:124,g:58,b:237,a:1},tags:[],components:[],spriteKey:char.id,
                   } as any);
                 }}
-                style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:8,padding:"8px 4px",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:4,transition:"all .15s"}}
+                style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:8,padding:"8px 4px",cursor:"grab",display:"flex",flexDirection:"column",alignItems:"center",gap:4,transition:"all .15s"}}
                 onMouseEnter={e=>{e.currentTarget.style.borderColor=T.accent;e.currentTarget.style.background=T.accentSoft;}}
                 onMouseLeave={e=>{e.currentTarget.style.borderColor=T.border;e.currentTarget.style.background=T.bgCard;}}>
                 <div style={{width:50,height:50}} dangerouslySetInnerHTML={{__html:char.svg.replace(/viewBox="([^"]+)"/,`viewBox="$1" width="50" height="50"`)}}/>
                 <span style={{fontSize:9,color:T.text200,fontFamily:"var(--font-cairo)",textAlign:"center",fontWeight:600}}>{char.name}</span>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -783,6 +815,14 @@ function HierarchyPanel() {
           <div style={{flex:1,overflow:"auto",padding:"5px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:5}}>
             {getAssetsByCategory(assetCat).map(asset=>(
               <div key={asset.id}
+                draggable
+                onDragStart={e=>{
+                  e.dataTransfer.effectAllowed="copy";
+                  e.dataTransfer.setData("application/x-editor-object", JSON.stringify({
+                    type:"decoration", name:asset.name, tag:"Untagged",
+                    spriteKey:asset.id, width:80, height:80,
+                  }));
+                }}
                 onClick={()=>{
                   const sc=store.getActiveScene(); if(!sc) return;
                   store.addObject({
@@ -792,7 +832,7 @@ function HierarchyPanel() {
                     spriteKey:asset.id,assetScale:asset.scale??1,
                   } as any);
                 }}
-                style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:8,padding:"8px 4px",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:4,transition:"all .15s"}}
+                style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:8,padding:"8px 4px",cursor:"grab",display:"flex",flexDirection:"column",alignItems:"center",gap:4,transition:"all .15s"}}
                 onMouseEnter={e=>{e.currentTarget.style.borderColor=T.accent;e.currentTarget.style.background=T.accentSoft;}}
                 onMouseLeave={e=>{e.currentTarget.style.borderColor=T.border;e.currentTarget.style.background=T.bgCard;}}>
                 <span style={{fontSize:26}}>{asset.icon}</span>
@@ -861,51 +901,102 @@ function Toolbar() {
   const store = useEditorStore();
   const {project,ui} = store;
   const router = useRouter();
-  const tools: {id:EditorTool;icon:React.ReactNode;tip:string}[] = [
-    {id:"select",icon:<MousePointer2 size={13}/>,tip:"تحديد (V)"},
-    {id:"move",  icon:<Move size={13}/>,         tip:"تحريك (G)"},
-    {id:"add",   icon:<Plus size={13}/>,          tip:"إضافة (A)"},
-    {id:"erase", icon:<Trash2 size={13}/>,        tip:"حذف (D)"},
-    {id:"pan",   icon:<Maximize2 size={13}/>,     tip:"تحريك عرض (H)"},
+  const tools: {id:EditorTool;icon:React.ReactNode;tip:string;key:string}[] = [
+    {id:"select",icon:<MousePointer2 size={13}/>,tip:"تحديد",key:"V"},
+    {id:"move",  icon:<Move size={13}/>,         tip:"تحريك",key:"G"},
+    {id:"add",   icon:<Plus size={13}/>,          tip:"إضافة",key:"A"},
+    {id:"erase", icon:<Trash2 size={13}/>,        tip:"حذف",  key:"D"},
+    {id:"pan",   icon:<Maximize2 size={13}/>,     tip:"تحريك العرض",key:"H"},
   ];
+  const div = (m="0 3px") => <div style={{width:1,height:20,background:T.border,margin:m,flexShrink:0}}/>;
   return (
-    <div style={{height:44,background:T.bgPanel,borderBottom:`1px solid ${T.border}`,display:"flex",alignItems:"center",gap:4,padding:"0 10px",flexShrink:0}}>
-      <Gamepad2 size={16} style={{color:T.accent}}/>
-      <span style={{fontSize:12,fontWeight:800,color:T.text100,marginLeft:4,marginRight:8}}>يالا Editor</span>
-      <div style={{width:1,height:20,background:T.border,marginRight:6}}/>
-      <input value={project?.title||""} onChange={e=>store.setProjectTitle(e.target.value)} style={{background:"transparent",border:"none",outline:"none",color:T.text100,fontSize:12,fontWeight:600,width:150,fontFamily:"var(--font-cairo)"}} placeholder="اسم المشروع..."/>
-      {ui.isDirty&&<div style={{width:5,height:5,borderRadius:"50%",background:T.yellow,flexShrink:0}}/>}
-      <div style={{flex:1}}/>
-      <div style={{display:"flex",gap:1,background:T.bgBase,borderRadius:7,padding:3,border:`1px solid ${T.border}`}}>
-        {tools.map(t=><button key={t.id} title={t.tip} onClick={()=>store.setTool(t.id)} style={{...iBtn(ui.activeTool===t.id),width:28,height:28}}>{t.icon}</button>)}
+    <div style={{height:46,background:T.bgPanel,borderBottom:`1px solid ${T.border}`,display:"flex",alignItems:"center",gap:2,padding:"0 8px",flexShrink:0,boxShadow:"0 1px 0 rgba(0,0,0,0.3)"}}>
+      {/* Logo */}
+      <div style={{display:"flex",alignItems:"center",gap:6,marginRight:4}}>
+        <div style={{width:28,height:28,borderRadius:7,background:"linear-gradient(135deg,#7c3aed,#2563eb)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+          <Gamepad2 size={15} color="#fff"/>
+        </div>
+        <span style={{fontSize:12,fontWeight:800,color:T.text100,letterSpacing:"-0.3px"}}>يالا<span style={{color:T.accent}}>Editor</span></span>
       </div>
-      <div style={{width:1,height:20,background:T.border,margin:"0 4px"}}/>
-      <button onClick={store.undo} disabled={!store.canUndo()} style={iBtn(false)}><Undo2 size={13}/></button>
-      <button onClick={store.redo} disabled={!store.canRedo()} style={iBtn(false)}><Redo2 size={13}/></button>
-      <div style={{width:1,height:20,background:T.border,margin:"0 4px"}}/>
-      <button title="شبكة" onClick={store.toggleGrid} style={iBtn(ui.showGrid)}><Grid3X3 size={13}/></button>
-      <button title="Snap" onClick={store.toggleSnapToGrid} style={iBtn(ui.snapToGrid)}><Crosshair size={13}/></button>
-      <div style={{width:1,height:20,background:T.border,margin:"0 4px"}}/>
+      {div()}
+      {/* Project name */}
+      <input value={project?.title||""} onChange={e=>store.setProjectTitle(e.target.value)}
+        style={{background:"transparent",border:"none",outline:"none",color:T.text200,fontSize:12,fontWeight:600,width:140,fontFamily:"var(--font-cairo)",borderBottom:`1px solid transparent`}}
+        placeholder="اسم المشروع..."
+        onFocus={e=>e.currentTarget.style.borderBottomColor=T.accent}
+        onBlur={e=>e.currentTarget.style.borderBottomColor="transparent"}/>
+      {ui.isDirty&&<div style={{width:5,height:5,borderRadius:"50%",background:T.yellow,flexShrink:0,marginLeft:2}}/>}
+      <div style={{flex:1}}/>
+      {/* Tool group */}
+      <div style={{display:"flex",gap:1,background:T.bgBase,borderRadius:8,padding:"2px",border:`1px solid ${T.border}`}}>
+        {tools.map(t=>(
+          <button key={t.id} title={`${t.tip} (${t.key})`} onClick={()=>store.setTool(t.id)}
+            style={{width:30,height:30,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",border:"none",
+              borderRadius:6,background:ui.activeTool===t.id?"linear-gradient(135deg,rgba(124,58,237,0.3),rgba(37,99,235,0.2))":"transparent",
+              color:ui.activeTool===t.id?T.accent:T.text400,flexShrink:0,position:"relative"}}>
+            {t.icon}
+            {ui.activeTool===t.id&&(
+              <span style={{position:"absolute",bottom:1,right:2,fontSize:6,color:T.accent,fontFamily:"monospace",lineHeight:1}}>{t.key}</span>
+            )}
+          </button>
+        ))}
+      </div>
+      {div()}
+      {/* Undo/Redo */}
+      <button onClick={store.undo} disabled={!store.canUndo()} title="Undo (Ctrl+Z)" style={iBtn(false)}><Undo2 size={13}/></button>
+      <button onClick={store.redo} disabled={!store.canRedo()} title="Redo (Ctrl+Y)" style={iBtn(false)}><Redo2 size={13}/></button>
+      {div()}
+      {/* Grid & Snap */}
+      <button title="شبكة (G)" onClick={store.toggleGrid} style={iBtn(ui.showGrid,T.teal)}><Grid3X3 size={13}/></button>
+      <button title="Snap to Grid" onClick={store.toggleSnapToGrid} style={iBtn(ui.snapToGrid,T.teal)}><Crosshair size={13}/></button>
+      {div()}
+      {/* Zoom */}
       <button onClick={()=>store.setZoom(ui.zoom-0.25)} style={iBtn(false)}><ZoomOut size={13}/></button>
-      <span style={{fontSize:10,color:T.text400,minWidth:34,textAlign:"center"}}>{Math.round(ui.zoom*100)}%</span>
+      <span style={{fontSize:10,color:T.text400,minWidth:34,textAlign:"center",fontVariantNumeric:"tabular-nums"}}>{Math.round(ui.zoom*100)}%</span>
       <button onClick={()=>store.setZoom(ui.zoom+0.25)} style={iBtn(false)}><ZoomIn size={13}/></button>
-      <div style={{width:1,height:20,background:T.border,margin:"0 4px"}}/>
+      {div()}
+      {/* Save */}
       <button onClick={store.saveProject} disabled={ui.isSaving||!ui.isDirty}
-        style={{background:ui.isDirty?T.accentSoft:"transparent",border:`1px solid ${ui.isDirty?T.accent:T.border}`,borderRadius:7,color:ui.isDirty?T.accent:T.text400,padding:"0 10px",height:28,fontSize:11,fontWeight:600,display:"flex",alignItems:"center",gap:5,cursor:ui.isDirty?"pointer":"default",fontFamily:"var(--font-cairo)"}}>
+        style={{background:ui.isDirty?"linear-gradient(135deg,rgba(124,58,237,0.25),rgba(37,99,235,0.15))":"transparent",
+          border:`1px solid ${ui.isDirty?T.accent:T.border}`,borderRadius:7,
+          color:ui.isDirty?T.accent:T.text600,padding:"0 10px",height:28,fontSize:11,fontWeight:600,
+          display:"flex",alignItems:"center",gap:5,cursor:ui.isDirty?"pointer":"default",fontFamily:"var(--font-cairo)",flexShrink:0}}>
         {ui.isSaving?<Loader2 size={12} style={{animation:"spin 1s linear infinite"}}/>:<Save size={12}/>}
-        {ui.isSaving?"حفظ...":"حفظ"}
+        {ui.isSaving?"جاري الحفظ...":"حفظ"}
       </button>
-      <div style={{display:"flex",gap:2,background:T.bgBase,borderRadius:7,padding:3,border:`1px solid ${T.border}`}}>
-        <button onClick={()=>store.setPlaying(!ui.isPlaying)} style={{...iBtn(ui.isPlaying,ui.isPlaying?T.red:T.green),width:28,height:28}}>
+      {div()}
+      {/* Play controls */}
+      <div style={{display:"flex",gap:2,background:T.bgBase,borderRadius:8,padding:"2px",border:`1px solid ${T.border}`}}>
+        <button onClick={()=>store.setPlaying(!ui.isPlaying)}
+          style={{width:30,height:30,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",border:"none",
+            borderRadius:6,background:ui.isPlaying?"rgba(239,68,68,0.2)":"rgba(34,197,94,0.15)",
+            color:ui.isPlaying?T.red:T.green,flexShrink:0}}>
           {ui.isPlaying?<Square size={13}/>:<Play size={13}/>}
         </button>
-        {ui.isPlaying&&<button onClick={()=>store.setPaused(!ui.isPaused)} style={{...iBtn(ui.isPaused,T.yellow),width:28,height:28}}><Pause size={13}/></button>}
+        {ui.isPlaying&&(
+          <button onClick={()=>store.setPaused(!ui.isPaused)}
+            style={{width:30,height:30,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",border:"none",
+              borderRadius:6,background:ui.isPaused?"rgba(245,158,11,0.2)":"transparent",
+              color:ui.isPaused?T.yellow:T.text400,flexShrink:0}}>
+            <Pause size={13}/>
+          </button>
+        )}
       </div>
-      <button onClick={store.toggleAiChat} style={{background:ui.aiChatOpen?"rgba(124,58,237,0.2)":"transparent",border:`1px solid ${ui.aiChatOpen?T.accent:T.border}`,borderRadius:7,color:ui.aiChatOpen?T.accent:T.text400,padding:"0 8px",height:28,fontSize:11,display:"flex",alignItems:"center",gap:5,cursor:"pointer",fontFamily:"var(--font-cairo)"}}>
+      {div()}
+      {/* AI + Dashboard */}
+      <button onClick={store.toggleAiChat}
+        style={{background:ui.aiChatOpen?"linear-gradient(135deg,rgba(124,58,237,0.25),rgba(37,99,235,0.15))":"transparent",
+          border:`1px solid ${ui.aiChatOpen?T.accent:T.border}`,borderRadius:7,
+          color:ui.aiChatOpen?T.accent:T.text400,padding:"0 10px",height:28,fontSize:11,
+          display:"flex",alignItems:"center",gap:5,cursor:"pointer",fontFamily:"var(--font-cairo)",flexShrink:0}}>
         <Sparkles size={12}/> AI
       </button>
-      <button onClick={()=>router.push("/admin")} style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:7,color:T.text400,padding:"0 8px",height:28,fontSize:11,display:"flex",alignItems:"center",gap:5,cursor:"pointer",fontFamily:"var(--font-cairo)"}}>
-        <LayoutDashboard size={12}/>
+      <button onClick={()=>router.push("/admin")}
+        style={{background:"transparent",border:`1px solid ${T.border}`,borderRadius:7,
+          color:T.text600,padding:"0 8px",height:28,
+          display:"flex",alignItems:"center",cursor:"pointer",flexShrink:0}}
+        title="Dashboard">
+        <LayoutDashboard size={13}/>
       </button>
     </div>
   );
@@ -1023,6 +1114,65 @@ function NewProjectModal({ onClose }: { onClose:()=>void }) {
 }
 
 // ════════════════════════════════════════════════════════════
+//  STATUS BAR
+// ════════════════════════════════════════════════════════════
+function StatusBar() {
+  const store = useEditorStore();
+  const { ui } = store;
+  const scene   = store.getActiveScene();
+  const selObj  = store.getSelectedObject();
+  const objCount = scene?.objects?.length ?? 0;
+
+  return (
+    <div style={{
+      height: 22, flexShrink: 0,
+      background: T.bgBase, borderTop: `1px solid ${T.border}`,
+      display: "flex", alignItems: "center", gap: 0,
+      padding: "0 10px", fontSize: 10, color: T.text600,
+      fontFamily: "monospace", userSelect: "none",
+    }}>
+      {/* Tool */}
+      <span style={{ color: T.accent, marginRight: 10 }}>
+        {ui.activeTool === "select" ? "▣ تحديد"
+         : ui.activeTool === "move"  ? "✥ تحريك"
+         : ui.activeTool === "add"   ? "✚ إضافة"
+         : ui.activeTool === "erase" ? "✖ حذف"
+         : ui.activeTool === "pan"   ? "✋ تحريك عرض"
+         : ui.activeTool}
+      </span>
+      <span style={{ width: 1, height: 12, background: T.border, margin: "0 8px" }}/>
+      {/* Objects count */}
+      <span>{objCount} كائن</span>
+      <span style={{ width: 1, height: 12, background: T.border, margin: "0 8px" }}/>
+      {/* Selected object */}
+      {selObj ? (
+        <span style={{ color: T.text400 }}>
+          ◈ {selObj.name}
+          <span style={{ color: T.text600, marginLeft: 6 }}>
+            ({Math.round(selObj.x)}, {Math.round(selObj.y)})
+          </span>
+          <span style={{ color: T.text600, marginLeft: 6 }}>
+            {selObj.width}×{selObj.height}
+          </span>
+        </span>
+      ) : (
+        <span>لا يوجد تحديد</span>
+      )}
+      <div style={{ flex: 1 }}/>
+      {/* Zoom */}
+      <span style={{ color: T.text400 }}>zoom {Math.round(ui.zoom * 100)}%</span>
+      <span style={{ width: 1, height: 12, background: T.border, margin: "0 8px" }}/>
+      {/* Grid indicators */}
+      {ui.showGrid && <span style={{ color: T.teal }}>⊞ grid</span>}
+      {ui.snapToGrid && <span style={{ color: T.teal, marginLeft: 6 }}>⌖ snap</span>}
+      <span style={{ width: 1, height: 12, background: T.border, margin: "0 8px" }}/>
+      {/* Scene */}
+      <span style={{ color: T.text600 }}>{scene?.name ?? "—"}</span>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════
 //  MAIN EDITOR
 // ════════════════════════════════════════════════════════════
 function EditorContent() {
@@ -1096,16 +1246,27 @@ function EditorContent() {
 
   if(!isLoaded||!project) return (
     <div style={{minHeight:"100dvh",background:T.bgBase,display:"flex",alignItems:"center",justifyContent:"center"}}>
-      <motion.div initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} style={{textAlign:"center"}}>
-        <Gamepad2 size={48} style={{color:T.accent,marginBottom:14}}/>
-        <h1 style={{fontSize:26,fontWeight:800,color:T.text100,marginBottom:6,fontFamily:"var(--font-cairo)"}}>يالا Editor</h1>
-        <p style={{color:T.text400,fontSize:13,marginBottom:6,fontFamily:"var(--font-cairo)"}}>محرك ألعاب عربي مدعوم بالـ AI</p>
-        <p style={{color:T.text600,fontSize:11,marginBottom:28,fontFamily:"var(--font-cairo)"}}>Component System · Visual Scripting · 3D Canvas</p>
-        <div style={{display:"flex",gap:10,justifyContent:"center"}}>
-          <button onClick={()=>setShowNew(true)} style={{background:T.accent,border:"none",borderRadius:10,color:"#fff",padding:"12px 28px",fontSize:14,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:7,fontFamily:"var(--font-cairo)"}}>
-            <Plus size={16}/> مشروع جديد
-          </button>
+      <motion.div initial={{opacity:0,y:24}} animate={{opacity:1,y:0}} style={{textAlign:"center",maxWidth:480,padding:"0 24px"}}>
+        {/* Logo */}
+        <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:12,marginBottom:24}}>
+          <div style={{width:52,height:52,borderRadius:14,background:"linear-gradient(135deg,#7c3aed,#2563eb)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 8px 32px rgba(124,58,237,0.4)"}}>
+            <Gamepad2 size={26} color="#fff"/>
+          </div>
+          <div style={{textAlign:"right"}}>
+            <h1 style={{fontSize:24,fontWeight:900,color:T.text100,margin:0,fontFamily:"var(--font-cairo)"}}>يالا Editor</h1>
+            <p style={{color:T.text400,fontSize:12,margin:0,fontFamily:"var(--font-cairo)"}}>محرك ألعاب عربي بالـ AI</p>
+          </div>
         </div>
+        {/* Feature chips */}
+        <div style={{display:"flex",gap:6,justifyContent:"center",flexWrap:"wrap",marginBottom:28}}>
+          {["🎮 Component System","🔮 Visual Scripting","🌍 3D Canvas","🤖 AI Assistant"].map(f=>(
+            <span key={f} style={{background:T.bgCard,border:`1px solid ${T.border}`,borderRadius:20,padding:"4px 10px",fontSize:10,color:T.text400,fontFamily:"var(--font-cairo)"}}>{f}</span>
+          ))}
+        </div>
+        <button onClick={()=>setShowNew(true)} style={{background:"linear-gradient(135deg,#7c3aed,#2563eb)",border:"none",borderRadius:12,color:"#fff",padding:"13px 32px",fontSize:14,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:8,fontFamily:"var(--font-cairo)",margin:"0 auto",boxShadow:"0 8px 28px rgba(124,58,237,0.35)"}}>
+          <Plus size={18}/> مشروع جديد
+        </button>
+        <p style={{color:T.text600,fontSize:11,marginTop:16,fontFamily:"var(--font-cairo)"}}>أو افتح مشروعاً موجوداً من الـ Dashboard</p>
       </motion.div>
       {showNew&&<NewProjectModal onClose={()=>setShowNew(false)}/>}
     </div>
@@ -1128,6 +1289,8 @@ function EditorContent() {
               </motion.div>
             )}
           </AnimatePresence>
+          {/* Status Bar */}
+          <StatusBar/>
         </div>
         <InspectorPanel/>
         <AiChat/>
@@ -1136,12 +1299,16 @@ function EditorContent() {
         @keyframes spin{to{transform:rotate(360deg)}}
         @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
         input[type=number]::-webkit-inner-spin-button{opacity:0.4}
-        input:focus{border-color:${T.accent}!important}
+        input:focus{border-color:${T.accent}!important;outline:none}
         select{color-scheme:dark}
-        ::-webkit-scrollbar{width:4px;height:4px}
+        button{transition:opacity .12s,background .12s,color .12s,border-color .12s,box-shadow .12s}
+        button:disabled{opacity:0.35!important;cursor:not-allowed!important}
+        ::-webkit-scrollbar{width:3px;height:3px}
         ::-webkit-scrollbar-track{background:transparent}
         ::-webkit-scrollbar-thumb{background:${T.border};border-radius:2px}
         ::-webkit-scrollbar-thumb:hover{background:${T.borderMd}}
+        *{box-sizing:border-box}
+        ::selection{background:rgba(124,58,237,0.35);color:#fff}
       `}</style>
     </div>
   );
